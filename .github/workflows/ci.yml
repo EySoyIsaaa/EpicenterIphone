@@ -40,5 +40,8 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Generate Capacitor iOS files
+        run: pnpm exec cap copy ios
+
       - name: Verify iOS plugin wiring
         run: node scripts/verify-ios-native-plugin.mjs

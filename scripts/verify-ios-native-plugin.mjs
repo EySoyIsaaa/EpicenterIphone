@@ -8,24 +8,30 @@ const wrapperPath = join(root, 'client/src/native/iosNativeAudio.ts');
 const capConfigPath = join(root, 'ios/App/App/capacitor.config.json');
 const podfilePath = join(root, 'ios/App/Podfile');
 
-const nativeSourceMirrors = [
-  'Plugins/EpicenterNativePlugin.swift',
-  'NativeAudio/NativeAudioModels.swift',
-  'NativeAudio/NativeLibraryDatabase.swift',
-  'NativeAudio/NativeTrackImporter.swift',
-  'NativeAudio/NativeTrackRepository.swift',
-  'NativeAudio/NativeAudioSessionManager.swift',
-  'NativeAudio/NativeAudioEngine.swift',
-  'NativeAudio/NativeQueueManager.swift',
-  'NativeAudio/NativePlaybackController.swift',
-  'NativeAudio/NowPlayingManager.swift',
-  'NativeAudio/RemoteCommandManager.swift',
-  'DSP/AudioLimiter.swift',
-  'DSP/EQ31BandProcessor.swift',
-  'DSP/ReverbProcessor.swift',
+const pluginPackageSources = [
+  'ios/Plugins/EpicenterNativePlugin.swift',
+  'ios/NativeAudio/AutoEQStore.swift',
+  'ios/NativeAudio/EpicenterAutoEQAnalyzer.swift',
+  'ios/NativeAudio/NativeAudioModels.swift',
+  'ios/NativeAudio/NativeLibraryDatabase.swift',
+  'ios/NativeAudio/NativeTrackImporter.swift',
+  'ios/NativeAudio/NativeTrackRepository.swift',
+  'ios/NativeAudio/NativeAudioSessionManager.swift',
+  'ios/NativeAudio/NativeAudioEngine.swift',
+  'ios/NativeAudio/NativeQueueManager.swift',
+  'ios/NativeAudio/NativePlaybackController.swift',
+  'ios/NativeAudio/NowPlayingManager.swift',
+  'ios/NativeAudio/RemoteCommandManager.swift',
+  'ios/CarPlay/CarPlaySceneDelegate.swift',
+  'ios/DSP/AudioLimiter.swift',
+  'ios/DSP/EpicenterDSPBridge.h',
+  'ios/DSP/EpicenterDSPBridge.mm',
+  'ios/DSP/EpicenterDSPCore.cpp',
+  'ios/DSP/EpicenterDSPCore.hpp',
+  'ios/DSP/EpicenterHeadphonesCore.hpp',
+  'ios/DSP/EQ31BandProcessor.swift',
+  'ios/DSP/ReverbProcessor.swift',
 ];
-
-const pluginPackageSources = nativeSourceMirrors.map((source) => `ios/${source}`);
 
 const requiredPluginMethods = [
   'importTracks',
@@ -61,12 +67,6 @@ const wrapper = readFileSync(wrapperPath, 'utf8');
 const capConfig = readFileSync(capConfigPath, 'utf8');
 const podfile = readFileSync(podfilePath, 'utf8');
 const plugin = readFileSync(join(root, 'plugins/epicenter-native-ios/ios/Plugins/EpicenterNativePlugin.swift'), 'utf8');
-
-for (const source of nativeSourceMirrors) {
-  if (!existsSync(join(root, 'ios/App/App', source))) {
-    fail(`Missing restored iOS native source mirror: ios/App/App/${source}`);
-  }
-}
 
 for (const source of pluginPackageSources) {
   if (!existsSync(join(root, 'plugins/epicenter-native-ios', source))) {

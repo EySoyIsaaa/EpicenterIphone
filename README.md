@@ -1,64 +1,117 @@
-# Epicenter Hi-Fi
+# EpicenterDSP Player para iOS
 
-**Versión:** 5.0.0  
-**Última actualización:** 27 de marzo de 2026
+Reproductor local de música para iPhone y iPad con una interfaz React y un
+motor de audio completamente nativo en iOS. La aplicación conserva la
+portabilidad de Capacitor para la interfaz, pero la reproducción, biblioteca,
+procesamiento DSP y controles del sistema se ejecutan con tecnologías de Apple.
 
-Epicenter Hi-Fi es un **reproductor local de música** para Android/Web con un enfoque diferencial: el núcleo de la experiencia está en el **procesador Epicenter DSP** y en la **implementación de IA aplicada al audio y a la experiencia de uso**.
+## Funciones principales
 
-## Enfoque para Inovatec (factor diferencial)
-
-Aunque es un reproductor completo (biblioteca, cola, playlists, alta resolución), el proyecto se posiciona como una plataforma de audio inteligente centrada en:
-
-- **Epicenter DSP en tiempo real** para reconstrucción de graves y control fino del perfil sonoro.
-- **IA aplicada** para asistencia contextual, automatización de decisiones de sonido y experiencias de ayuda dentro de la app.
-- **Integración híbrida Web + Android nativo** para mantener portabilidad sin perder capacidades del dispositivo.
-
-Este enfoque (Epicenter + IA) es el factor que diferencia la app frente a reproductores tradicionales basados sólo en reproducción y ecualización estática.
-
-## Qué hace hoy la app
-
-- Reproducción local de archivos de audio.
-- Biblioteca persistente con importación manual y escaneo en Android.
-- Cola editable y playlists locales.
+- Importación manual de archivos de audio desde el selector de documentos.
+- Biblioteca local persistente con SQLite.
+- Reproducción nativa con `AVAudioEngine`.
+- Epicenter DSP con modos Car Audio y Audífonos.
 - Ecualizador gráfico de 31 bandas.
-- Procesador Epicenter con controles: Sweep, Width, Intensity, Balance y Volume.
-- Detección de pistas High Resolution.
-- Crossfade configurable.
-- Controles de reproducción en background.
-- Interfaz bilingüe (ES/EN).
-- Soporte de navegación Android con botón físico de regresar (back) para volver entre vistas antes de cerrar la app.
+- Reverb y Concert Hall.
+- Detección de metadatos Hi-Res y Auto-EQ.
+- Audio en segundo plano, Now Playing y controles remotos.
+- Interfaz en español e inglés.
+- Integración CarPlay en desarrollo.
 
-## Formatos soportados
+La aplicación trabaja con archivos importados por el usuario. No intenta
+procesar canciones protegidas por DRM ni audio perteneciente a otras apps.
 
-- MP3
-- WAV
-- FLAC
-- M4A / AAC
-- OGG (según disponibilidad del origen)
+## Arquitectura
 
-## Stack tecnológico
+```text
+React + TypeScript + Vite
+            |
+        Capacitor 6
+            |
+   EpicenterNativeIos Pod
+            |
+Swift + Objective-C++ + C++17
+            |
+AVFoundation / MediaPlayer / SQLite
+```
 
-- React 19 + TypeScript
-- Vite
-- Tailwind CSS
-- Web Audio API + AudioWorklet
-- Capacitor Android
-- IndexedDB
+Directorios principales:
 
-## Flujo de audio
+- `client/`: interfaz React y bridge TypeScript.
+- `plugins/epicenter-native-ios/`: fuente nativa compilada del plugin iOS.
+- `ios/App/`: workspace y configuración de Xcode.
+- `docs/migration/`: documentación técnica de la migración nativa.
+- `epicenter-lab/`: herramientas de análisis y validación del DSP.
+- `server/` y `shared/`: servicios web opcionales y tipos compartidos.
+- `android/`: implementación histórica y referencia para Android.
 
-`Audio source -> Epicenter processor -> 31-band equalizer -> output`
+## Requisitos
 
-## Estructura del proyecto
+- macOS.
+- Xcode 15 o posterior.
+- iOS Deployment Target 15.6.
+- Node.js 24 LTS recomendado; mínimo `22.12.0`.
+- pnpm `10.4.1`.
+- CocoaPods.
 
-- `client/`: interfaz, audio, hooks y componentes.
-- `server/`: servidor Express/tRPC para servir la aplicación.
-- `shared/`: utilidades y tipos compartidos.
-- `android/`: contenedor Android con Capacitor y plugin nativo para MediaStore.
+Consulta [COMANDOS_MAC_XCODE.txt](COMANDOS_MAC_XCODE.txt) para preparar una
+Mac nueva paso a paso.
 
-## Scripts principales
+## Instalación
 
-- `pnpm dev`: entorno de desarrollo.
-- `pnpm build`: compilación de frontend y servidor.
-- `pnpm test`: pruebas con Vitest.
-- `pnpm check`: validación TypeScript.
+```bash
+pnpm install --frozen-lockfile
+pnpm build
+pnpm exec cap sync ios
+
+cd ios/App
+pod install
+open App.xcworkspace
+```
+
+Abre siempre `App.xcworkspace`, no `App.xcodeproj`.
+
+Para ejecutar en un iPhone físico, inicia sesión en Xcode, selecciona tu Team
+en **Signing & Capabilities** y utiliza un Bundle Identifier perteneciente a
+tu cuenta.
+
+## Validación
+
+```bash
+pnpm check
+pnpm test
+pnpm build
+node scripts/verify-ios-native-plugin.mjs
+```
+
+El workflow de GitHub Actions ejecuta typecheck, las pruebas y el build web en
+cada pull request.
+
+La compilación completa de Xcode requiere macOS y debe validarse además en un
+iPhone físico para probar audio en segundo plano, cambios de ruta y controles
+remotos.
+
+## Variables opcionales
+
+La ruta iOS local no necesita secretos para compilar. Las funciones web y de
+servidor pueden configurarse copiando `.env.example` a `.env`; nunca publiques
+el archivo `.env` real.
+
+## CarPlay
+
+El código del scene delegate está incluido, pero una distribución con CarPlay
+requiere que Apple conceda el entitlement
+`com.apple.developer.carplay-audio` y que el perfil de firma lo contenga.
+
+## Documentación técnica
+
+- [Validación del plugin en Xcode](docs/migration/IOS_XCODE_VALIDATION.md)
+- [Grafo de audio iOS](docs/migration/IOS_AUDIO_GRAPH.md)
+- [Mapa del Epicenter DSP](docs/migration/EPICENTER_DSP_PORT_MAP.md)
+- [Reproducción en segundo plano](docs/migration/IOS_BACKGROUND_PLAYBACK.md)
+- [Estrategia de importación](docs/migration/IOS_IMPORT_STRATEGY.md)
+- [Referencia para portar el modo Audífonos a Android](docs/android/HEADPHONES_PORT.md)
+
+## Licencia
+
+Distribuido bajo la [licencia MIT](LICENSE).

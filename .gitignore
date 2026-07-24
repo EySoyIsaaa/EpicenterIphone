@@ -3,6 +3,9 @@
 # IDE and editors
 .idea/
 .vscode/
+.codex/
+.claude/settings.local.json
+.gitconfig
 
 # Dependencies
 node_modules/
@@ -27,12 +30,24 @@ dist/
 .env
 *.env
 *.env.*
+!.env.example
 *token.json*
 *credentials.json*
 *.pem
 *.p12
+*.pfx
 *.mobileprovision
 *.cer
+*.key
+*.jks
+*.keystore
+key.properties
+GoogleService-Info.plist
+google-services.json
+.npmrc
+.netrc
+Secrets.xcconfig
+*.private.xcconfig
 id_rsa*
 
 # Logs and debug files
@@ -67,12 +82,20 @@ ios/App/Pods/
 ios/App/App/public/
 ios/App/*.xcworkspace/xcuserdata/
 ios/App/*.xcodeproj/xcuserdata/
+**/xcuserdata/
+*.xcuserstate
+*.xcarchive
+*.xcresult
+*.ipa
+*.dSYM/
+*.dSYM.zip
 DerivedData/
 
 # Android generated
 android/.gradle/
 android/app/build/
 android/build/
+android/local.properties
 
 # Epicenter lab: keep the source, ignore audio, binaries and rendered output
 epicenter-lab/output/
@@ -87,6 +110,7 @@ epicenter-lab/*.ogg
 .emergent/
 .manus-logs/
 basura_para_borrar_manual/
+epicenter audifonos/
 
 # Deployment
 .vercel

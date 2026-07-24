@@ -73,38 +73,21 @@ The plugin exposes the required methods:
 - `previous`
 - `getPlaybackState`
 
-## Restored native files
-
-Mirror copies are kept under the regenerated official iOS app folder for Xcode visibility/manual inspection:
-
-```text
-ios/App/App/Plugins/EpicenterNativePlugin.swift
-ios/App/App/NativeAudio/NativeAudioModels.swift
-ios/App/App/NativeAudio/NativeLibraryDatabase.swift
-ios/App/App/NativeAudio/NativeTrackImporter.swift
-ios/App/App/NativeAudio/NativeTrackRepository.swift
-ios/App/App/NativeAudio/NativeAudioSessionManager.swift
-ios/App/App/NativeAudio/NativeAudioEngine.swift
-ios/App/App/NativeAudio/NativeQueueManager.swift
-ios/App/App/NativeAudio/NativePlaybackController.swift
-ios/App/App/NativeAudio/NowPlayingManager.swift
-ios/App/App/NativeAudio/RemoteCommandManager.swift
-ios/App/App/DSP/AudioLimiter.swift
-ios/App/App/DSP/EQ31BandProcessor.swift
-ios/App/App/DSP/ReverbProcessor.swift
-ios/App/App/DSP/EpicenterDSPBridge.h
-ios/App/App/DSP/EpicenterDSPBridge.mm
-ios/App/App/DSP/EpicenterDSPCore.hpp
-ios/App/App/DSP/EpicenterDSPCore.cpp
-```
+## Native source of truth
 
 The compiled source of truth for automatic Capacitor registration is the local plugin package:
 
 ```text
 plugins/epicenter-native-ios/ios/Plugins/EpicenterNativePlugin.swift
 plugins/epicenter-native-ios/ios/NativeAudio/*.swift
+plugins/epicenter-native-ios/ios/CarPlay/*.swift
 plugins/epicenter-native-ios/ios/DSP/*.swift
+plugins/epicenter-native-ios/ios/DSP/*.{h,hpp,mm,cpp}
 ```
+
+There are intentionally no duplicate native source mirrors under
+`ios/App/App/`. CocoaPods exposes and compiles the plugin files in Xcode. This
+avoids source drift and duplicate symbol errors.
 
 ## Compile Sources / target validation
 
@@ -120,7 +103,7 @@ It checks that:
 
 - the TypeScript wrapper registers `EpicenterNative`
 - the local plugin package contains the Swift native sources
-- the iOS app mirror files are present
+- every source declared by the local iOS plugin is present
 - `EpicenterNativePlugin.swift` has `@objc(EpicenterNativePlugin)`, `CAPPlugin`, `CAPBridgedPlugin`, `jsName = "EpicenterNative"`, and required methods
 - `ios/App/App/capacitor.config.json` contains `EpicenterNativePlugin` in `packageClassList`
 - `ios/App/Podfile` contains the safe local pod `EpicenterNativeIos`

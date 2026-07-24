@@ -1,8 +1,18 @@
 # 📋 CHANGELOG - EpicenterDSP PLAYER
 
-> **⚠️ IMPORTANTE: Este es el ÚNICO archivo .md de documentación que debe actualizarse.**
-> 
-> **NO crear nuevos archivos .md**. Todas las actualizaciones, cambios y documentación deben agregarse aquí.
+> Este archivo conserva el historial de las versiones anteriores. La
+> documentación vigente del port iOS se encuentra en `README.md` y
+> `docs/migration/`.
+
+---
+
+## Unreleased
+
+- Preparación del repositorio público para desarrollo entre Windows y macOS.
+- Documentación actualizada del stack React, Capacitor y audio nativo iOS.
+- Validación automática de typecheck, pruebas y build mediante GitHub Actions.
+- Deployment Target de la app alineado con el mínimo iOS 15.6 del plugin.
+- Verificador del plugin actualizado para usar una sola fuente de verdad.
 
 ---
 

@@ -3,8 +3,8 @@ Pod::Spec.new do |s|
   s.version = '1.0.0'
   s.summary = 'Epicenter native iOS Capacitor plugin'
   s.license = 'MIT'
-  s.homepage = 'https://example.com/epicenter-native-ios'
-  s.author = { 'Epicenter' => 'ios@example.com' }
+  s.homepage = 'https://github.com/EySoyIsaaa/EpicenterIphone'
+  s.author = { 'EySoyIsaaa' => 'https://github.com/EySoyIsaaa' }
   s.source = { :path => '.' }
   s.ios.deployment_target = '15.6'
   s.swift_version = '5.0'

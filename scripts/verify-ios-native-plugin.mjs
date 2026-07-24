@@ -4,6 +4,7 @@ import { join } from 'node:path';
 const root = process.cwd();
 const pbxprojPath = join(root, 'ios/App/App.xcodeproj/project.pbxproj');
 const infoPlistPath = join(root, 'ios/App/App/Info.plist');
+const sceneDelegatePath = join(root, 'ios/App/App/SceneDelegate.swift');
 const wrapperPath = join(root, 'client/src/native/iosNativeAudio.ts');
 const capConfigPath = join(root, 'ios/App/App/capacitor.config.json');
 const podfilePath = join(root, 'ios/App/Podfile');
@@ -53,7 +54,14 @@ const fail = (message) => {
   process.exitCode = 1;
 };
 
-for (const path of [pbxprojPath, infoPlistPath, wrapperPath, capConfigPath, podfilePath]) {
+for (const path of [
+  pbxprojPath,
+  infoPlistPath,
+  sceneDelegatePath,
+  wrapperPath,
+  capConfigPath,
+  podfilePath,
+]) {
   if (!existsSync(path)) {
     fail(`Missing required file: ${path}`);
   }
@@ -63,6 +71,7 @@ if (process.exitCode) process.exit(process.exitCode);
 
 const pbxproj = readFileSync(pbxprojPath, 'utf8');
 const infoPlist = readFileSync(infoPlistPath, 'utf8');
+const sceneDelegate = readFileSync(sceneDelegatePath, 'utf8');
 const wrapper = readFileSync(wrapperPath, 'utf8');
 const capConfig = readFileSync(capConfigPath, 'utf8');
 const podfile = readFileSync(podfilePath, 'utf8');
@@ -116,9 +125,30 @@ if (!infoPlist.includes('<key>UIBackgroundModes</key>') || !infoPlist.includes('
   fail('Info.plist is missing UIBackgroundModes audio');
 }
 
+if (
+  !infoPlist.includes('<key>UIWindowSceneSessionRoleApplication</key>') ||
+  !infoPlist.includes('<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>') ||
+  !infoPlist.includes('<key>UISceneStoryboardFile</key>') ||
+  !infoPlist.includes('<string>Main</string>')
+) {
+  fail('Info.plist is missing the main iPhone scene configuration');
+}
+
+if (
+  !sceneDelegate.includes('class SceneDelegate: UIResponder, UIWindowSceneDelegate') ||
+  !sceneDelegate.includes('var window: UIWindow?')
+) {
+  fail('SceneDelegate.swift does not provide the main iPhone window scene');
+}
+
+if (!pbxproj.includes('SceneDelegate.swift in Sources')) {
+  fail('SceneDelegate.swift is not included in the App target');
+}
+
 if (!process.exitCode) {
   console.log('✅ EpicenterNative local Capacitor plugin is present.');
   console.log('✅ Capacitor iOS config auto-registers EpicenterNativePlugin.');
   console.log('✅ Podfile installs EpicenterNativeIos without manual project.pbxproj edits.');
+  console.log('✅ The main iPhone scene and CarPlay scene are configured.');
   console.log('✅ Info.plist contains UIBackgroundModes audio.');
 }

@@ -1,85 +1,94 @@
 /**
- * SplashScreen - Pantalla de inicio con animación
- * Muestra el ícono Epicenter y el nombre de la app
- * Fade-in / fade-out profesional
- * 
- * v2.2.0
+ * SplashScreen — apertura "Bass Impact".
+ *
+ * La escena usa transform y opacity para mantener la animación fluida en el
+ * WebView, respeta prefers-reduced-motion y puede saltarse con un toque.
  */
 
-import { useState, useEffect } from 'react';
-import { useLanguage } from '@/hooks/useLanguage';
-import logoMenuInicial from '../../../logo-menu-inicial.svg';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface SplashScreenProps {
   onFinish: () => void;
-  duration?: number; // duración total en ms
+  duration?: number;
 }
 
-export function SplashScreen({ onFinish, duration = 2000 }: SplashScreenProps) {
-  const [phase, setPhase] = useState<'fade-in' | 'visible' | 'fade-out'>('fade-in');
+const EXIT_MS = 520;
+const SPECTRUM_BARS = 28;
+
+export function SplashScreen({ onFinish, duration = 3600 }: SplashScreenProps) {
+  const [leaving, setLeaving] = useState(false);
   const { t } = useLanguage();
+  const finishedRef = useRef(false);
+  const exitTimerRef = useRef<number | null>(null);
+
+  const finish = useCallback(() => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    setLeaving(true);
+    exitTimerRef.current = window.setTimeout(onFinish, EXIT_MS);
+  }, [onFinish]);
 
   useEffect(() => {
-    // Fase 1: Fade in (400ms)
-    const fadeInTimer = setTimeout(() => {
-      setPhase('visible');
-    }, 400);
-
-    // Fase 2: Visible (mantener)
-    // Fase 3: Fade out (empieza 400ms antes de terminar)
-    const fadeOutTimer = setTimeout(() => {
-      setPhase('fade-out');
-    }, duration - 400);
-
-    // Terminar
-    const finishTimer = setTimeout(() => {
-      onFinish();
-    }, duration);
+    const finishTimer = window.setTimeout(
+      finish,
+      Math.max(0, duration - EXIT_MS),
+    );
 
     return () => {
-      clearTimeout(fadeInTimer);
-      clearTimeout(fadeOutTimer);
-      clearTimeout(finishTimer);
+      window.clearTimeout(finishTimer);
+      if (exitTimerRef.current !== null) {
+        window.clearTimeout(exitTimerRef.current);
+      }
     };
-  }, [duration, onFinish]);
-
-  const getOpacity = () => {
-    switch (phase) {
-      case 'fade-in': return 'opacity-0';
-      case 'visible': return 'opacity-100';
-      case 'fade-out': return 'opacity-0';
-    }
-  };
+  }, [duration, finish]);
 
   return (
-    <div className="fixed inset-0 z-[100] epicenter-shell flex flex-col items-center justify-center">
-      <div className={`flex flex-col items-center transition-opacity duration-400 ${getOpacity()}`}>
-        {/* Epicenter Icon */}
-        <div className="relative mb-6">
-          <img
-            src={logoMenuInicial}
-            alt="Epicenter logo"
-            className="relative w-56 max-w-[80vw] h-auto drop-shadow-2xl"
-          />
-        </div>
+    <div
+      className={`intro-root ${leaving ? "intro-leaving" : ""}`}
+      onClick={finish}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          finish();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={t("splash.skip")}
+    >
+      <div className="intro-stage">
+        <span className="intro-ring intro-ring-1" />
+        <span className="intro-ring intro-ring-2" />
+        <span className="intro-ring intro-ring-3" />
+        <span className="intro-bloom" />
 
-        {/* App name */}
-        <h1 className="premium-title mb-1 text-2xl font-black text-[var(--ep-text)]">
-          EpicenterDSP Player
-        </h1>
-        <p className="text-sm font-bold tracking-widest uppercase text-[var(--ep-text-muted)]">
-          Bass Enhancement
-        </p>
+        <img
+          src="/epicenter-logo.png"
+          alt="EpicenterDSP"
+          className="intro-logo"
+          draggable={false}
+        />
 
-        {/* Version badge */}
-        <div className="mt-8 rounded-full border border-[var(--ep-border)] bg-[var(--ep-surface)] px-3 py-1">
-          <span className="text-xs font-bold text-[var(--ep-text-muted)]">v{t('app.version')}</span>
-        </div>
+        <span className="intro-sweep" />
       </div>
 
-      {/* Bottom branding */}
-      <div className={`absolute bottom-12 transition-opacity duration-400 ${getOpacity()}`}>
-        <p className="text-xs text-[var(--ep-text-muted)]">Bass Reconstruction Technology</p>
+      <div className="intro-spectrum" aria-hidden="true">
+        {Array.from({ length: SPECTRUM_BARS }).map((_, index) => (
+          <span
+            key={index}
+            className="intro-bar"
+            style={{
+              animationDelay: `${0.95 + (index % 7) * 0.04}s`,
+              ["--bar-peak" as string]: `${36 + ((index * 37) % 52)}%`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="intro-footer">
+        <span className="intro-version">v{t("app.version")}</span>
+        <span className="intro-tagline">Bass Reconstruction Technology</span>
       </div>
     </div>
   );

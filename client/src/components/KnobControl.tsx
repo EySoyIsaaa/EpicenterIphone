@@ -196,7 +196,11 @@ export const KnobControl: React.FC<KnobControlProps> = React.memo(
     }, [handleEnd, handleMove, isDragging]);
 
     return (
-      <div className={`flex flex-col items-center gap-2 ${featured ? "premium-knob-featured" : ""}`}>
+      <div
+        className={`knob-wrap flex flex-col items-center gap-2 ${
+          isDragging ? "knob-dragging" : ""
+        } ${featured ? "premium-knob-featured" : ""}`}
+      >
         {featured && (
           <p className="text-3xl font-black tabular-nums text-white tracking-tight dsp-numeric">
             {value.toFixed(0)}{unit}

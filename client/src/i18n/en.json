@@ -3,20 +3,26 @@
     "name": "Epicenter Hi-Fi",
     "version": "7.0.0"
   },
+  "splash": {
+    "skip": "Skip intro animation"
+  },
   "tabs": {
-    "now": "Now",
-    "library": "My Music",
+    "now": "Home",
+    "library": "Music",
     "eq": "EQ",
     "dsp": "DSP",
     "settings": "Settings",
     "search": "Search",
-    "fx": "FX"
+    "fx": "Effects"
   },
   "player": {
     "nowPlaying": "Now Playing",
     "queue": "Queue",
     "noPlayback": "No playback",
     "addMusicToStart": "Add music to start",
+    "noTrack": "No song selected",
+    "addMusic": "Add music",
+    "seekPosition": "Playback position",
     "queueEmpty": "Queue empty",
     "playbackQueue": "Playback Queue"
   },
@@ -58,7 +64,8 @@
     "sortDefault": "Default",
     "sortName": "Name",
     "sortArtist": "Artist",
-    "loadMoreSongs": "Load {count} more"
+    "loadMoreSongs": "Load {count} more",
+    "loading": "Loading..."
   },
   "playlists": {
     "title": "Playlists",
@@ -161,9 +168,9 @@
     "autoApplyNow": "Analyze and apply now",
     "modeCar": "Car Audio",
     "modeHeadphones": "Headphones",
-    "modeCarHint": "You're using the perfect tuning for car audio systems: maximum sub-bass pressure, built for setups with a subwoofer.",
-    "modeHeadphonesHint": "You're using the perfect tuning for headphones and portable speakers: deep, clean bass you can actually hear on small drivers.",
-    "modeHeadphonesKnobs": "In Headphones mode the engine is driven by Intensity only. Sweep, Width and Balance belong to the Car Audio engine."
+    "modeCarHint": "The classic Epicenter. Restores the deep sub energy only a subwoofer can reproduce: spectacular in a car or on systems with a dedicated sub.",
+    "modeHeadphonesHint": "Engine tuned for headphones and portable speakers. It synthesizes a clean sub, compresses it and centers it so it hits hard on small drivers.",
+    "modeHeadphonesKnobs": "In Headphones mode only Intensity applies. Sweep, Width and Balance belong to the Car Audio engine."
   },
   "fx": {
     "title": "Spatial effects",
@@ -247,7 +254,7 @@
     "next": "Next",
     "done": "Done",
     "step1Title": "Add your music",
-    "step1Description": "Import audio files or scan your device library to get started.",
+    "step1Description": "Import audio files from Files to get started.",
     "step2Title": "Tune your sound",
     "step2Description": "Use the 31-band EQ and Epicenter processor to shape your bass and clarity.",
     "step3Title": "Enjoy uninterrupted playback",
@@ -259,9 +266,9 @@
     "privacyTitle": "Privacy Policy",
     "privacyIntro": "Epicenter Hi-Fi stores your library and preferences locally on your device.",
     "privacyData": "We do not collect, sell, or share personal data. No analytics or advertising SDKs are used.",
-    "privacyStorage": "Audio files remain on your device. The app only accesses storage when you import or scan music.",
+    "privacyStorage": "Audio files remain on your device. The app only accesses files you choose to import.",
     "privacySecurity": "If you choose to grant permissions, you can revoke them anytime from system settings.",
-    "privacyContact": "For questions about privacy, contact the developer through the support email listed on Google Play.",
+    "privacyContact": "For questions about privacy, contact the developer through the support email listed on the App Store.",
     "termsTitle": "Terms of Service",
     "termsIntro": "By using Epicenter Hi-Fi, you agree to use the app for personal, lawful playback of your own audio files.",
     "termsUsage": "You are responsible for the content you load and for respecting applicable copyright laws.",

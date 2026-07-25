@@ -8,7 +8,7 @@
  * v1.1.2 - Added addToPlaylist option
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Disc3,
   ListPlus,
@@ -58,6 +58,7 @@ export function SwipeableTrackItem({
   const [swipeX, setSwipeX] = useState(0);
   const [isLongPress, setIsLongPress] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [pressing, setPressing] = useState(false);
 
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(
     null,
@@ -71,6 +72,15 @@ export function SwipeableTrackItem({
   const title = safeTitle(track);
   const artist = safeArtist(track);
 
+  useEffect(
+    () => () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    },
+    [],
+  );
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     touchStartRef.current = {
@@ -79,10 +89,12 @@ export function SwipeableTrackItem({
       time: Date.now(),
     };
     setIsLongPress(false);
+    setPressing(true);
 
     // Iniciar timer de long press
     longPressTimerRef.current = setTimeout(() => {
       setIsLongPress(true);
+      setPressing(false);
       setShowMenu(true);
       // Vibración háptica si está disponible
       if (navigator.vibrate) {
@@ -103,6 +115,7 @@ export function SwipeableTrackItem({
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
       }
+      setPressing(false);
       setSwipeX(0);
       return;
     }
@@ -110,6 +123,7 @@ export function SwipeableTrackItem({
     // Si hay movimiento horizontal, cancelar long press
     if (Math.abs(deltaX) > 10 && longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
+      setPressing(false);
     }
 
     // Limitar el desplazamiento
@@ -118,6 +132,7 @@ export function SwipeableTrackItem({
   }, []);
 
   const handleTouchEnd = useCallback(() => {
+    setPressing(false);
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
     }
@@ -138,6 +153,15 @@ export function SwipeableTrackItem({
     touchStartRef.current = null;
   }, [swipeX, isLongPress, track, onAddToQueue, onPlayNext, canActOnTrack]);
 
+  const handleTouchCancel = useCallback(() => {
+    setPressing(false);
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+    setSwipeX(0);
+    touchStartRef.current = null;
+  }, []);
+
   const handleClick = useCallback(() => {
     if (!isLongPress && Math.abs(swipeX) < 10) {
       if (canActOnTrack) onPlayNow(track);
@@ -147,6 +171,7 @@ export function SwipeableTrackItem({
   const closeMenu = useCallback(() => {
     setShowMenu(false);
     setIsLongPress(false);
+    setPressing(false);
   }, []);
 
   // Calcular opacidad de los indicadores
@@ -172,13 +197,15 @@ export function SwipeableTrackItem({
       {/* Menú contextual (long press) */}
       {showMenu && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/50" onClick={closeMenu} />
           <div
-            className="fixed z-50 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl py-2 min-w-[200px]"
+            className="modal-backdrop fixed inset-0 z-40 bg-black/50"
+            onClick={closeMenu}
+          />
+          <div
+            className="ctx-menu fixed z-50 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl py-2 min-w-[200px]"
             style={{
               left: "50%",
               top: "50%",
-              transform: "translate(-50%, -50%)",
             }}
           >
             <div className="px-4 py-3 border-b border-zinc-800">
@@ -190,7 +217,7 @@ export function SwipeableTrackItem({
                 if (canActOnTrack) onPlayNow(track);
                 closeMenu();
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors text-left"
+              className="ctx-item w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors text-left"
             >
               <Play className="w-5 h-5 text-zinc-400" />
               <span>{t("actions.playNow")}</span>
@@ -200,7 +227,7 @@ export function SwipeableTrackItem({
                 if (canActOnTrack) onPlayNext(track);
                 closeMenu();
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors text-left"
+              className="ctx-item w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors text-left"
             >
               <PlayCircle className="w-5 h-5 text-zinc-400" />
               <span>{t("actions.playNext")}</span>
@@ -210,7 +237,7 @@ export function SwipeableTrackItem({
                 if (canActOnTrack) onAddToQueue(track);
                 closeMenu();
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors text-left"
+              className="ctx-item w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors text-left"
             >
               <ListPlus className="w-5 h-5 text-zinc-400" />
               <span>{t("actions.addToQueue")}</span>
@@ -223,7 +250,7 @@ export function SwipeableTrackItem({
                     if (canActOnTrack) onAddToPlaylist(track);
                     closeMenu();
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors text-left"
+                  className="ctx-item w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors text-left"
                 >
                   <ListMusic className="w-5 h-5 text-zinc-400" />
                   <span>{t("playlists.addToPlaylist")}</span>
@@ -236,7 +263,7 @@ export function SwipeableTrackItem({
                   if (canActOnTrack) onPersistTrack(track);
                   closeMenu();
                 }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors text-left"
+                className="ctx-item w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-800 transition-colors text-left"
               >
                 <Save className="w-5 h-5 text-zinc-400" />
                 <span>{t("actions.persistTrack")}</span>
@@ -276,14 +303,20 @@ export function SwipeableTrackItem({
 
         {/* Contenido principal */}
         <div
-          className={`flex items-center gap-3 ${compact ? "p-2" : "p-3"} bg-black hover:bg-zinc-900/50 transition-all group relative`}
+          className={`flex items-center gap-3 ${compact ? "p-2" : "p-3"} bg-black hover:bg-zinc-900/50 transition-all group relative ${
+            pressing ? "press-hold" : ""
+          }`}
           style={{
-            transform: `translateX(${swipeX}px)`,
-            transition: swipeX === 0 ? "transform 0.2s ease-out" : "none",
+            transform: `translateX(${swipeX}px) scale(${pressing ? 0.965 : 1})`,
+            transition:
+              swipeX === 0
+                ? "transform 0.28s var(--ease-premium)"
+                : "none",
           }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
           onClick={handleClick}
         >
           <div

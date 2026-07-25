@@ -38,7 +38,7 @@ export function HomeSettingsView({
   onCrossfadeDurationChange,
 }: HomeSettingsViewProps) {
   return (
-    <div className="flex-1 flex flex-col" data-testid="settings-view">
+    <div className="animate-view-enter flex-1 flex flex-col" data-testid="settings-view">
       <header className="px-6 pt-12 pb-6 border-b border-zinc-900">
         <h2 className="text-xl font-bold">{t("settings.title")}</h2>
       </header>

@@ -3,20 +3,26 @@
     "name": "Epicenter Hi-Fi",
     "version": "7.0.0"
   },
+  "splash": {
+    "skip": "Saltar animación inicial"
+  },
   "tabs": {
-    "now": "Ahora",
-    "library": "Mi Música",
+    "now": "Inicio",
+    "library": "Música",
     "eq": "EQ",
     "dsp": "DSP",
     "settings": "Ajustes",
     "search": "Buscar",
-    "fx": "FX"
+    "fx": "Efectos"
   },
   "player": {
     "nowPlaying": "Ahora Suena",
     "queue": "Cola",
     "noPlayback": "Sin reproducción",
     "addMusicToStart": "Agrega música para comenzar",
+    "noTrack": "Sin canción",
+    "addMusic": "Agrega música",
+    "seekPosition": "Posición de reproducción",
     "queueEmpty": "Cola vacía",
     "playbackQueue": "Cola de reproducción"
   },
@@ -58,7 +64,8 @@
     "sortDefault": "Predeterminado",
     "sortName": "Nombre",
     "sortArtist": "Artista",
-    "loadMoreSongs": "Cargar {count} más"
+    "loadMoreSongs": "Cargar {count} más",
+    "loading": "Cargando..."
   },
   "playlists": {
     "title": "Playlists",
@@ -161,9 +168,9 @@
     "autoApplyNow": "Analizar y aplicar ahora",
     "modeCar": "Car Audio",
     "modeHeadphones": "Audífonos",
-    "modeCarHint": "Estás usando el tuning perfecto para equipos de car audio: máxima presión de subgraves, pensado para sistemas con subwoofer.",
-    "modeHeadphonesHint": "Estás usando el tuning perfecto para audífonos y bocinas portátiles: graves profundos y limpios que sí se escuchan en drivers pequeños.",
-    "modeHeadphonesKnobs": "En modo Audífonos el motor se ajusta solo con Intensidad. Sweep, Width y Balance pertenecen al motor de Car Audio."
+    "modeCarHint": "El Epicenter clásico. Reconstruye el subgrave profundo que solo un subwoofer puede reproducir: espectacular en el carro o en equipos con bajo dedicado.",
+    "modeHeadphonesHint": "Motor optimizado para audífonos y bocinas portátiles. Genera un subgrave limpio, lo comprime y lo centra para que se sienta con fuerza en drivers pequeños.",
+    "modeHeadphonesKnobs": "En modo Audífonos solo aplica la Intensidad. Sweep, Width y Balance pertenecen al motor de Car Audio."
   },
   "fx": {
     "title": "Efectos espaciales",
@@ -247,7 +254,7 @@
     "next": "Siguiente",
     "done": "Listo",
     "step1Title": "Agrega tu música",
-    "step1Description": "Importa archivos de audio o escanea tu biblioteca del dispositivo para comenzar.",
+    "step1Description": "Importa archivos de audio desde Archivos para comenzar.",
     "step2Title": "Ajusta tu sonido",
     "step2Description": "Usa el ecualizador de 31 bandas y el procesador Epicenter para moldear bajos y claridad.",
     "step3Title": "Disfruta sin interrupciones",
@@ -259,9 +266,9 @@
     "privacyTitle": "Política de privacidad",
     "privacyIntro": "Epicenter Hi-Fi guarda tu biblioteca y preferencias localmente en tu dispositivo.",
     "privacyData": "No recopilamos, vendemos ni compartimos datos personales. No usamos SDKs de analítica o publicidad.",
-    "privacyStorage": "Los archivos de audio permanecen en tu dispositivo. La app solo accede al almacenamiento cuando importas o escaneas música.",
+    "privacyStorage": "Los archivos de audio permanecen en tu dispositivo. La app solo accede a los archivos que eliges importar.",
     "privacySecurity": "Si concedes permisos, puedes revocarlos en cualquier momento desde la configuración del sistema.",
-    "privacyContact": "Para consultas sobre privacidad, contacta al desarrollador mediante el correo de soporte en Google Play.",
+    "privacyContact": "Para consultas sobre privacidad, contacta al desarrollador mediante el correo de soporte en App Store.",
     "termsTitle": "Términos de servicio",
     "termsIntro": "Al usar Epicenter Hi-Fi aceptas utilizar la app para reproducción personal y legal de tus archivos de audio.",
     "termsUsage": "Eres responsable del contenido que cargas y de respetar las leyes de copyright aplicables.",

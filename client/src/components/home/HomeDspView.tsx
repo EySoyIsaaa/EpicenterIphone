@@ -40,7 +40,7 @@ export function HomeDspView({
   const secondaryParams = params.filter((param) => param.key !== mainParam.key);
 
   return (
-    <div ref={viewRef} className="flex-1 overflow-y-auto px-4 home-scroll-with-player pt-12" data-testid="dsp-view">
+    <div ref={viewRef} className="animate-view-enter flex-1 overflow-y-auto px-4 home-scroll-with-player pt-12" data-testid="dsp-view">
       <header className="mb-5 flex items-start justify-between gap-4">
         <div>
           <p className="premium-title text-[10px] font-black text-[var(--ep-red)]">EpicenterDSP 7.0</p>
@@ -76,7 +76,7 @@ export function HomeDspView({
                 className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[11px] font-black uppercase tracking-[0.12em] transition ${
                   active
                     ? "bg-[var(--ep-red)] text-white shadow-[0_0_16px_rgba(255,16,42,0.45)]"
-                    : "text-[var(--ep-text-secondary)] hover:bg-white/5"
+                    : "border border-[#3a3a3a] bg-[#1c1c1c] text-zinc-200 hover:bg-[#262626] hover:text-white"
                 }`}
               >
                 <Icon className="h-4 w-4" />

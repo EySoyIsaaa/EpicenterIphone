@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { AudioQualityBadge } from "@/components/AudioQualityBadge";
 import { TrackArtwork } from "@/components/TrackArtwork";
 import { AudioSpectrumMeter } from "@/components/AudioSpectrumMeter";
+import { SeekSlider } from "@/components/SeekSlider";
 import type { Track } from "@/hooks/useAudioQueue";
 import type { TranslateFn } from "@/components/home/types";
 
@@ -252,19 +253,14 @@ export function HomePlayerView({
         </div>
 
         <div className="mt-4">
-          <input
-            type="range"
-            min={0}
-            max={audioProcessor.duration || 0}
-            value={audioProcessor.currentTime}
-            onChange={(event) => audioProcessor.seek(parseFloat(event.target.value))}
-            className="progress-slider w-full"
+          <SeekSlider
+            currentTime={audioProcessor.currentTime}
+            duration={audioProcessor.duration}
+            onSeek={audioProcessor.seek}
             disabled={!track}
+            formatTime={formatTime}
+            ariaLabel={t("player.seekPosition")}
           />
-          <div className="mt-2 flex justify-between text-[10px] font-bold tabular-nums text-[var(--ep-text-muted)]">
-            <span>{formatTime(audioProcessor.currentTime)}</span>
-            <span>{formatTime(audioProcessor.duration)}</span>
-          </div>
         </div>
 
         <div className="mt-4 flex items-center justify-center gap-8">

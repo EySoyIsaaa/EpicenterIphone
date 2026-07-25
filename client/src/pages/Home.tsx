@@ -218,6 +218,7 @@ export default function Home() {
     "default",
   );
   const [visibleSongsCount, setVisibleSongsCount] = useState(250);
+  const [visibleArtistsCount, setVisibleArtistsCount] = useState(30);
   const [showQueue, setShowQueue] = useState(false);
   const [pendingTrack, setPendingTrack] = useState<Track | null>(null);
   const [nowPlayingTrack, setNowPlayingTrack] = useState<Track | null>(null);
@@ -319,6 +320,7 @@ export default function Home() {
 
   useEffect(() => {
     setVisibleSongsCount(250);
+    setVisibleArtistsCount(30);
   }, [songSort, safeLibrary.length]);
   const normalizedGlobalQuery = globalSearchQuery.trim().toLowerCase();
 
@@ -1518,6 +1520,8 @@ export default function Home() {
           setSongSort={setSongSort}
           visibleSongsCount={visibleSongsCount}
           setVisibleSongsCount={setVisibleSongsCount}
+          visibleArtistsCount={visibleArtistsCount}
+          setVisibleArtistsCount={setVisibleArtistsCount}
           playlistMenu={playlistMenu}
           setPlaylistMenu={setPlaylistMenu}
           onCreatePlaylist={() => setShowCreatePlaylist(true)}
@@ -1600,8 +1604,8 @@ export default function Home() {
       )}
 
       {showEqAutoModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-md border border-zinc-800 space-y-4">
+        <div className="modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="modal-panel bg-zinc-900 rounded-2xl p-6 w-full max-w-md border border-zinc-800 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold">{t("eq.autoTitle")}</h3>
@@ -1637,8 +1641,8 @@ export default function Home() {
       )}
 
       {showDspAutoModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-md border border-zinc-800 space-y-4">
+        <div className="modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="modal-panel bg-zinc-900 rounded-2xl p-6 w-full max-w-md border border-zinc-800 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold">{t("dsp.autoTitle")}</h3>

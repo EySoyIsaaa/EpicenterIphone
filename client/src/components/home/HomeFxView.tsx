@@ -3,7 +3,9 @@ import { KnobControl } from "@/components/KnobControl";
 import { Switch } from "@/components/ui/switch";
 import type { TranslateFn } from "@/components/home/types";
 
-const SIGNAL_METER_BARS = [22, 34, 47, 61, 78, 86, 69, 58, 44, 31, 24, 18];
+const SIGNAL_METER_BARS = [
+  22, 34, 47, 61, 78, 86, 69, 58, 44, 31, 24, 18,
+] as const;
 
 interface HomeFxViewProps {
   t: TranslateFn;
@@ -35,7 +37,7 @@ export function HomeFxView({
     viewRef.current?.scrollTo({ top: 0, left: 0 });
   }, []);
   return (
-    <div ref={viewRef} className="flex-1 overflow-y-auto px-4 home-scroll-with-player pt-12" data-testid="fx-view">
+    <div ref={viewRef} className="animate-view-enter flex-1 overflow-y-auto px-4 home-scroll-with-player pt-12" data-testid="fx-view">
       <header className="mb-5 flex items-start justify-between gap-4">
         <div>
           <p className="premium-title text-[10px] font-black text-[var(--ep-red)]">DSP Rack / Output</p>
@@ -51,7 +53,7 @@ export function HomeFxView({
       <section className="premium-card rounded-3xl p-5">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h3 className="premium-title text-sm font-black text-white">Bass Boost / {t("fx.reverb")}</h3>
+            <h3 className="premium-title text-sm font-black text-white">{t("fx.reverb")}</h3>
             <p className="mt-1 text-xs leading-relaxed text-[var(--ep-text-muted)]">{t("fx.reverbDescription")}</p>
           </div>
           <Switch checked={reverbEnabled} onCheckedChange={onToggleReverb} />
@@ -69,7 +71,7 @@ export function HomeFxView({
       <section className="premium-card mt-4 rounded-3xl p-5">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h3 className="premium-title text-sm font-black text-white">Enhancer / Stereo Expander</h3>
+            <h3 className="premium-title text-sm font-black text-white">{t("fx.concertHall")}</h3>
             <p className="mt-1 text-xs leading-relaxed text-[var(--ep-text-muted)]">{t("fx.concertHallDescription")}</p>
           </div>
           <Switch checked={concertHallEnabled} onCheckedChange={onToggleConcertHall} />

@@ -86,6 +86,10 @@ interface HomeLibraryViewProps
   setSongSort: (sort: HomeSongSort) => void;
   visibleSongsCount: number;
   setVisibleSongsCount: (value: number | ((prev: number) => number)) => void;
+  visibleArtistsCount: number;
+  setVisibleArtistsCount: (
+    value: number | ((prev: number) => number),
+  ) => void;
   playlistMenu: { playlist: Playlist; x: number; y: number } | null;
   setPlaylistMenu: (
     menu: { playlist: Playlist; x: number; y: number } | null,
@@ -119,6 +123,8 @@ export function HomeLibraryView({
   setSongSort,
   visibleSongsCount,
   setVisibleSongsCount,
+  visibleArtistsCount,
+  setVisibleArtistsCount,
   setPlaylistMenu,
   onCreatePlaylist,
   onOpenFilePicker,
@@ -152,7 +158,7 @@ export function HomeLibraryView({
 
   return (
     <div
-      className="flex-1 flex flex-col home-scroll-with-player"
+      className="animate-view-enter flex-1 flex flex-col home-scroll-with-player"
       data-testid="library-view"
     >
       <header className="flex items-center justify-between px-5 pt-12 pb-3">
@@ -683,67 +689,88 @@ export function HomeLibraryView({
 
         {libraryView === "artists" && (
           <div className="p-4 space-y-1">
-            {Object.entries(songsByArtist ?? {}).map(([artist, tracks]) => {
-              const safeTracks = Array.isArray(tracks)
-                ? tracks.filter(Boolean)
-                : [];
-              if (safeTracks.length === 0) {
-                console.warn("[ActionsScreen] skipping empty artist group", {
-                  artist,
-                });
-                return null;
-              }
-              return (
-                <div key={artist} className="mb-4">
-                  <div className="flex items-center justify-between p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center">
-                        <User className="w-6 h-6 text-zinc-500" />
+            {Object.entries(songsByArtist ?? {})
+              .slice(0, visibleArtistsCount)
+              .map(([artist, tracks]) => {
+                const safeTracks = Array.isArray(tracks)
+                  ? tracks.filter(Boolean)
+                  : [];
+                if (safeTracks.length === 0) {
+                  console.warn("[ActionsScreen] skipping empty artist group", {
+                    artist,
+                  });
+                  return null;
+                }
+                return (
+                  <div key={artist} className="mb-4">
+                    <div className="flex items-center justify-between p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center">
+                          <User className="w-6 h-6 text-zinc-500" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">{artist}</p>
+                          <p className="text-sm text-zinc-500">
+                            {t("library.songsCount", {
+                              count: safeTracks.length,
+                            })}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold">{artist}</p>
-                        <p className="text-sm text-zinc-500">
-                          {t("library.songsCount", {
-                            count: safeTracks.length,
-                          })}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => onPlayInOrder(safeTracks)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--ep-red)] text-white text-xs font-semibold"
+                        >
+                          <Play className="w-3.5 h-3.5" fill="currentColor" />
+                          {t("actions.play")}
+                        </button>
+                        <button
+                          onClick={() => onShufflePlay(safeTracks)}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-700 text-xs text-white"
+                        >
+                          <Shuffle className="w-3.5 h-3.5" />
+                          {t("library.shuffle")}
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => onPlayInOrder(safeTracks)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--ep-red)] text-white text-xs font-semibold"
-                      >
-                        <Play className="w-3.5 h-3.5" fill="currentColor" />
-                        {t("actions.play")}
-                      </button>
-                      <button
-                        onClick={() => onShufflePlay(safeTracks)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-700 text-xs text-white"
-                      >
-                        <Shuffle className="w-3.5 h-3.5" />
-                        {t("library.shuffle")}
-                      </button>
+                    <div className="ml-4 border-l border-zinc-800 pl-2">
+                      {safeTracks.map((track) => (
+                        <SwipeableTrackItem
+                          key={track.id}
+                          track={track}
+                          onPlayNow={onPlayNow}
+                          onAddToQueue={onAddToQueue}
+                          onPlayNext={onPlayNext}
+                          onAddToPlaylist={onOpenAddToPlaylist}
+                          onPersistTrack={onPersistEphemeralTrack}
+                          showArtist={false}
+                          compact
+                        />
+                      ))}
                     </div>
                   </div>
-                  <div className="ml-4 border-l border-zinc-800 pl-2">
-                    {safeTracks.map((track) => (
-                      <SwipeableTrackItem
-                        key={track.id}
-                        track={track}
-                        onPlayNow={onPlayNow}
-                        onAddToQueue={onAddToQueue}
-                        onPlayNext={onPlayNext}
-                        onAddToPlaylist={onOpenAddToPlaylist}
-                        onPersistTrack={onPersistEphemeralTrack}
-                        showArtist={false}
-                        compact
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            {visibleArtistsCount <
+              Object.keys(songsByArtist ?? {}).length && (
+              <div className="py-4 text-center">
+                <button
+                  onClick={() =>
+                    setVisibleArtistsCount((previous) => previous + 30)
+                  }
+                  className="px-4 py-2 rounded-full bg-zinc-900 text-zinc-200 text-sm"
+                >
+                  {t("library.loadMoreSongs", {
+                    count: Math.min(
+                      30,
+                      Object.keys(songsByArtist ?? {}).length -
+                        visibleArtistsCount,
+                    ),
+                  })}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

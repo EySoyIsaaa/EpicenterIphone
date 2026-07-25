@@ -163,8 +163,8 @@ export function PlaylistNameModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-800">
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="modal-panel bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-800">
         <h3 className="text-lg font-bold mb-4">{title}</h3>
         <input
           type="text"
@@ -212,8 +212,8 @@ export function DeletePlaylistModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-800">
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="modal-panel bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-800">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
             <Trash2 className="w-5 h-5 text-red-400" />
@@ -263,8 +263,8 @@ export function AddToPlaylistModal({
   const safePlaylists = Array.isArray(playlists) ? playlists : [];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-800 max-h-[80vh] flex flex-col">
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="modal-panel bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-800 max-h-[80vh] flex flex-col">
         <h3 className="text-lg font-bold mb-4">
           {t("playlists.selectPlaylist")}
         </h3>
@@ -328,8 +328,8 @@ export function DuplicatesModal({
   if (safeDuplicateFileNames.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-800 max-h-[80vh] min-h-0 flex flex-col">
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="modal-panel bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-800 max-h-[80vh] min-h-0 flex flex-col">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
             <AlertCircle className="w-5 h-5 text-[var(--ep-red)]" />
@@ -400,8 +400,8 @@ export function OnboardingModal({
   const isLastStep = currentStep === steps.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-lg border border-zinc-800 flex flex-col gap-4">
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="modal-panel bg-zinc-900 rounded-2xl p-6 w-full max-w-lg border border-zinc-800 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
             {t("onboarding.title")}
@@ -477,8 +477,8 @@ export function AddSongsToPlaylistModal({
     : [];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-md border border-zinc-800 max-h-[85vh] flex flex-col">
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="modal-panel bg-zinc-900 rounded-2xl p-6 w-full max-w-md border border-zinc-800 max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-lg font-bold">{t("playlists.addSongs")}</h3>

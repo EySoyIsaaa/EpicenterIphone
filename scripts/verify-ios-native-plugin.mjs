@@ -40,12 +40,14 @@ const requiredPluginMethods = [
   'getTrack',
   'deleteTrack',
   'setQueue',
+  'setQueueAndPlay',
   'play',
   'pause',
   'stop',
   'seek',
   'next',
   'previous',
+  'setRepeatMode',
   'getPlaybackState',
 ];
 

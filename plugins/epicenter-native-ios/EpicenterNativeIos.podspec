@@ -12,6 +12,6 @@ Pod::Spec.new do |s|
   s.public_header_files = 'ios/DSP/EpicenterDSPBridge.h'
   s.pod_target_xcconfig = { 'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17', 'CLANG_CXX_LIBRARY' => 'libc++', 'IPHONEOS_DEPLOYMENT_TARGET' => '15.6' }
   s.dependency 'Capacitor'
-  s.frameworks = 'AVFoundation', 'MediaPlayer', 'UIKit', 'UniformTypeIdentifiers', 'CarPlay', 'Accelerate'
+  s.frameworks = 'AudioToolbox', 'AVFoundation', 'MediaPlayer', 'UIKit', 'UniformTypeIdentifiers', 'CarPlay', 'Accelerate'
   s.libraries = 'sqlite3'
 end

@@ -31,7 +31,7 @@ export type HomeLibraryView =
 export type HomeSongSort = "default" | "name" | "artist";
 
 export interface HomeTrackActions {
-  onPlayNow: (track: Track) => void;
+  onPlayNow: (track: Track, collection?: Track[]) => void;
   onAddToQueue: (track: Track) => void;
   onPlayNext: (track: Track) => void;
   onAddToPlaylist: (track: Track) => void;

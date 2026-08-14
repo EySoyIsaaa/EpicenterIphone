@@ -24,7 +24,10 @@ export function HomeSearchView({
   onAddToPlaylist,
 }: HomeSearchViewProps) {
   return (
-    <div className="animate-view-enter flex-1 flex flex-col home-scroll-with-player" data-testid="search-view">
+    <div
+      className="animate-view-enter flex-1 flex flex-col home-scroll-with-player"
+      data-testid="search-view"
+    >
       <header className="px-5 pt-12 pb-3">
         <p className="premium-title text-[10px] font-black text-[var(--ep-red)]">
           Library Search
@@ -68,7 +71,9 @@ export function HomeSearchView({
               <SwipeableTrackItem
                 key={track.id}
                 track={track}
-                onPlayNow={onPlayNow}
+                onPlayNow={(selectedTrack) =>
+                  onPlayNow(selectedTrack, globalResults)
+                }
                 onAddToQueue={onAddToQueue}
                 onPlayNext={onPlayNext}
                 onAddToPlaylist={onAddToPlaylist}

@@ -2,9 +2,12 @@ import { registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 
 export type IOSNativeAudioStatus =
   | "ok"
+  | "ignored"
   | "not_found"
   | "not_implemented"
   | "error";
+
+export type IOSNativeRepeatMode = "off" | "all" | "one";
 
 export interface IOSNativeTrack {
   id: string;
@@ -80,6 +83,7 @@ export interface IOSNativePlaybackQueue {
   trackIds: string[];
   currentIndex: number;
   currentTrackId?: string | null;
+  repeatMode?: IOSNativeRepeatMode;
 }
 
 export interface IOSNativePlaybackState {
@@ -87,6 +91,8 @@ export interface IOSNativePlaybackState {
   isPlaying: boolean;
   currentTime: number;
   duration: number;
+  playbackStrategy?: "full-buffer-dsp" | "streaming-file";
+  epicenterCustomProcessing?: boolean;
   durationMs?: number;
   currentTrackId?: string | null;
   stableId?: string | null;
@@ -110,9 +116,13 @@ export interface IOSNativeFxState {
   reverbEnabled: boolean;
   reverbAmount: number;
   reverbWetDryMix?: number;
+  reverbReturnGain?: number;
   concertHallEnabled: boolean;
   concertHallAmount: number;
   concertHallWetDryMix?: number;
+  concertHallReturnGain?: number;
+  dryGain?: number;
+  peakLimiterEnabled?: boolean;
   combinedMode?: string;
   outputVolume?: number;
 }
@@ -174,12 +184,19 @@ export interface EpicenterNativePlugin {
     trackIds: string[];
     startIndex?: number;
   }): Promise<IOSNativeSetQueueResult>;
+  setQueueAndPlay(params: {
+    trackIds: string[];
+    startIndex?: number;
+  }): Promise<IOSNativePlaybackState>;
   play(params?: { trackId?: string }): Promise<IOSNativePlaybackState>;
   pause(): Promise<IOSNativePlaybackState>;
   seek(params: { seconds: number }): Promise<IOSNativePlaybackState>;
   stop(): Promise<IOSNativePlaybackState>;
   next(params?: { requestId?: string }): Promise<IOSNativePlaybackState>;
   previous(params?: { requestId?: string }): Promise<IOSNativePlaybackState>;
+  setRepeatMode(params: {
+    mode: IOSNativeRepeatMode;
+  }): Promise<IOSNativePlaybackState>;
   setEpicenterEnabled(params: {
     enabled: boolean;
   }): Promise<Record<string, unknown>>;

@@ -11,14 +11,15 @@ constexpr float EPICENTER_INTENSITY_MAX_SCALE = 0.65f;
 constexpr float EPICENTER_VOLUME_MAX_SCALE = 0.75f;
 constexpr float EPICENTER_OUTPUT_TRIM = 0.95f;
 constexpr float SUB_DEPTH = 1.0f;
-constexpr float DEEP_EXTENSION_AMOUNT = 0.36f;
-constexpr float SYNTH_DEPTH_GAIN = 1.18f;
-constexpr float GATE_DETECTOR_FLOOR = 0.40f;
-constexpr float GATE_DETECTOR_AUTHORITY = 0.22f;
-constexpr float OUTPUT_DC_HIGHPASS_HZ = 26.0f;
-constexpr float DEEP_EXTENSION_SUBSONIC_HIGHPASS_HZ = 23.0f;
-constexpr float DEEP_EXTENSION_MIX_BASE = 0.46f;
-constexpr float DEEP_EXTENSION_MIX_VOICE = 0.58f;
+constexpr float DEEP_EXTENSION_AMOUNT = 0.18f;
+constexpr float SYNTH_DEPTH_GAIN = 1.0f;
+constexpr float GATE_DETECTOR_FLOOR = 0.25f;
+constexpr float GATE_DETECTOR_AUTHORITY = 0.0f;
+constexpr float OUTPUT_DC_HIGHPASS_HZ = 32.0f;
+constexpr float DEEP_EXTENSION_SUBSONIC_HIGHPASS_HZ = 24.0f;
+constexpr float DEEP_EXTENSION_MIX_BASE = 0.32f;
+constexpr float DEEP_EXTENSION_MIX_VOICE = 0.42f;
+constexpr float FLIP_SLEW_MS = 1.5f;
 
 inline float clampf(float v, float lo, float hi) { return std::max(lo, std::min(v, hi)); }
 inline float denormalFloor(float v) { return (std::fabs(v) < DENORMAL_FLOOR || !std::isfinite(v)) ? 0.0f : v; }
@@ -181,7 +182,7 @@ void EpicenterDSPCore::process(float* const* channels, int channelCount, std::si
 EpicenterDSPCore::DerivedFrequencies EpicenterDSPCore::getDerivedFrequencies(float sweepFreq, float width) const {
     const float sweepNorm = (clampf(sweepFreq, 27, 63) - 27.0f) / 36.0f;
     const float widthNorm = clampf(width, 0, 100) / 100.0f;
-    return {55 + sweepNorm * 10, 75 + sweepNorm * 10, 100 + sweepNorm * 15, 105 + widthNorm * 30, 95 + sweepNorm * 20, 56 + widthNorm * 8, 48 + widthNorm * 8, 16 + sweepNorm * 4, 30 + widthNorm * 10};
+    return {55 + sweepNorm * 10, 75 + sweepNorm * 10, 100 + sweepNorm * 15, 105 + widthNorm * 30, 95 + sweepNorm * 20, 58 + widthNorm * 10, 48 + widthNorm * 8, 16 + sweepNorm * 4, 34 + widthNorm * 5};
 }
 
 EpicenterDSPCore::ChannelState EpicenterDSPCore::createChannelState(const DerivedFrequencies& d) {
@@ -238,7 +239,7 @@ void EpicenterDSPCore::ensureState(int channelCount, float sweepFreq, float widt
 
 float EpicenterDSPCore::computeGate(float monoEnv, float diffEnv, float weightedDetectorEnv) const {
     const float musicRatio = diffEnv / (monoEnv + 1.0e-6f);
-    const float detectorActivity = std::min(1.0f, weightedDetectorEnv * 10.5f);
+    const float detectorActivity = std::min(1.0f, weightedDetectorEnv * 9.5f);
     const float musicScore = clampf(musicRatio * 3.2f, 0, 1);
     const float musicalGate = detectorActivity * (GATE_DETECTOR_FLOOR + musicScore * (1.0f - GATE_DETECTOR_FLOOR));
     const float detectorSustain = std::max(0.0f, detectorActivity - 0.50f) * GATE_DETECTOR_AUTHORITY;
@@ -248,7 +249,7 @@ float EpicenterDSPCore::computeGate(float monoEnv, float diffEnv, float weighted
 void EpicenterDSPCore::processChunk(float* const* input, int channelCount, std::size_t blockSize, const EpicenterDSPParameters& p) {
     ensureState(channelCount, p.sweepFreq, p.width);
     const float intensityRawNorm = clampf(p.intensity, 0, 100) / 100.0f;
-    const float intensityProgress = std::pow(intensityRawNorm, 0.82f);
+    const float intensityProgress = intensityRawNorm;
     const float intensityScaledNorm = intensityProgress * EPICENTER_INTENSITY_MAX_SCALE;
     const float intensityNorm = intensityScaledNorm * EPICENTER_INTENSITY_HEADROOM;
     const float balanceNorm = clampf(p.balance, 0, 100) / 100.0f;
@@ -256,12 +257,15 @@ void EpicenterDSPCore::processChunk(float* const* input, int channelCount, std::
     const float volumeGain = clampf((p.volume / 100.0f) * EPICENTER_VOLUME_MAX_SCALE, 0, 1);
     const float bassBoostFreqHz = 48 + widthNorm * 8;
     const float bassBoostGainDb = intensityScaledNorm * 7.4f;
-    const float synthAmount = (0.45f + intensityNorm * 1.24f) * 1.16f * SYNTH_DEPTH_GAIN;
+    const float synthAmount = (0.42f + intensityNorm * 1.2f) * 1.15f * SYNTH_DEPTH_GAIN;
     const float bassProgramAmount = 0.58f + balanceNorm * 0.26f;
     const float lowMidBodyAmount = 0.12f + balanceNorm * 0.08f;
     const float lowMidDipAmount = (0.08f + intensityNorm * 0.16f) * (0.45f + widthNorm * 0.3f);
     const int gateHoldSamples = static_cast<int>(std::floor(sampleRate_ * (0.025 + intensityNorm * 0.06)));
 
+    const float flipSlew = 1.0f - std::exp(
+        -1.0f / (static_cast<float>(sampleRate_) * FLIP_SLEW_MS * 0.001f)
+    );
     for (std::size_t i = 0; i < blockSize; ++i) {
         const float left = denormalFloor(input[0][i]);
         const float right = channelCount > 1 ? denormalFloor(input[1][i]) : left;
@@ -274,17 +278,18 @@ void EpicenterDSPCore::processChunk(float* const* input, int channelCount, std::
         const float diffEnv = monoState_.diffEnv.process(monoState_.diffHighpass.process(diff));
         if (monoState_.lastDetector <= 0 && weightedDetector > 0) monoState_.flipState *= -1.0f;
         monoState_.lastDetector = weightedDetector;
-        const float rawHalf = monoState_.flipState * detectorEnv;
+        monoState_.flipSmoothed += (monoState_.flipState - monoState_.flipSmoothed) * flipSlew;
+        const float rawHalf = monoState_.flipSmoothed * detectorEnv;
         float synth = monoState_.synthLowpass.process(monoState_.synthHighpass.process(rawHalf));
         const float gateTarget = computeGate(monoEnv, diffEnv, detectorEnv);
         const float gateValue = monoState_.gateEnv.process(gateTarget);
         if (gateTarget > 0.3f) monoState_.holdSamples = gateHoldSamples; else if (monoState_.holdSamples > 0) monoState_.holdSamples--;
         const float remixGate = std::max(gateValue, (monoState_.holdSamples > 0 ? 1.0f : 0.0f) * 0.45f);
         const float leveledSynth = monoState_.synthLevelEnv.process(synth) * (synth < 0 ? -1.0f : 1.0f);
-        const float protectedSynth = softClip((synth * 0.64f + leveledSynth * 0.36f) * 1.98f) * 0.71f;
+        const float protectedSynth = softClip((synth * 0.85f + leveledSynth * 0.15f) * 1.92f) * 0.72f;
         subBuffer_[i] = denormalFloor(protectedSynth * synthAmount * remixGate);
     }
-    const float deepExtensionAmount = DEEP_EXTENSION_AMOUNT * intensityProgress * (0.74f + intensityScaledNorm * 0.26f);
+    const float deepExtensionAmount = DEEP_EXTENSION_AMOUNT * intensityProgress * (0.72f + intensityScaledNorm * 0.28f);
     for (std::size_t i = 0; i < blockSize; ++i) {
         const float deepLow = monoState_.deepExtensionLowpass.process(subBuffer_[i]);
         const float deepProtected = monoState_.deepExtensionSubsonicHighpass.process(deepLow);
@@ -311,7 +316,9 @@ void EpicenterDSPCore::processChunk(float* const* input, int channelCount, std::
             mixed *= volumeGain * protectionGain * EPICENTER_OUTPUT_TRIM;
             mixed = softClip(mixed * 0.9f) / SOFT_CLIP_09;
             mixed = s.outputDcHighpass.process(mixed);
-            input[ch][i] = clampf(denormalFloor(mixed), -1.0f, 1.0f);
+            // Preserve the waveform here; the downstream host limiter
+            // (Apple PeakLimiter on iOS) owns peak containment without flat tops.
+            input[ch][i] = denormalFloor(mixed);
         }
     }
 }

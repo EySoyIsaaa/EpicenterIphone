@@ -63,6 +63,85 @@ final class NativePlaybackController {
         }
     }
 
+    /// Atomically installs a queue and starts its selected track on the controller's
+    /// serial queue. This prevents a bridge race where `play(trackId:)` could run before
+    /// a large library queue had finished crossing from JavaScript.
+    func setQueueAndPlay(trackIds: [String], startIndex: Int) -> [String: Any] {
+        queue.sync {
+            let requestId = nextRequestId(prefix: "native-queue-play")
+            let previousTrackIds = queueManager.trackIds
+            let previousCurrentIndex = queueManager.currentIndex
+            let previousFailedTrackIds = temporarilyFailedTrackIds
+
+            // Normalize and resolve the requested entry without touching the active
+            // queue. A missing/unready file must not replace the queue that may still
+            // be playing while JavaScript correctly keeps its previous snapshot.
+            let proposedQueue = NativeQueueManager()
+            proposedQueue.setQueue(trackIds: trackIds, startIndex: startIndex)
+            guard let selectedTrackId = proposedQueue.currentTrackId else {
+                return playbackErrorResponse(
+                    code: "empty_queue",
+                    message: "No track is queued",
+                    requestId: requestId,
+                    shouldEmit: false
+                )
+            }
+
+            temporarilyFailedTrackIds.removeAll()
+            guard let selectedTrack = repository.findTrack(id: selectedTrackId),
+                  validateStandaloneTrack(selectedTrack, requestId: requestId) else {
+                temporarilyFailedTrackIds = previousFailedTrackIds
+                return playbackErrorResponse(
+                    code: "no_playable_tracks",
+                    message: "Selected track is not playable",
+                    trackId: selectedTrackId,
+                    requestId: requestId,
+                    shouldEmit: false
+                )
+            }
+
+            queueManager.setQueue(
+                trackIds: proposedQueue.trackIds,
+                startIndex: proposedQueue.currentIndex
+            )
+
+            beginTransition(requestId: requestId, source: "set-queue-and-play")
+            defer { endTransition(requestId: requestId, reason: "set-queue-and-play-finished") }
+            let result = loadTrack(
+                selectedTrack,
+                at: queueManager.currentIndex,
+                requestId: requestId,
+                shouldRestartLoadedTrack: true,
+                skipOnFailure: true
+            )
+
+            if isSuccessfulPlaybackResponse(result) {
+                emit("queueChanged", [
+                    "status": "ok",
+                    "queue": queueManager.dictionary,
+                ])
+                return result
+            }
+
+            // Loading may fail after AVAudioEngine has already stopped the previous
+            // decoder. Restore the controller queue anyway so native and JavaScript
+            // never disagree about its contents; the emitted state truthfully reports
+            // that playback is now stopped and can be retried.
+            queueManager.setQueue(
+                trackIds: previousTrackIds,
+                startIndex: previousCurrentIndex
+            )
+            temporarilyFailedTrackIds = previousFailedTrackIds
+            emit("queueChanged", [
+                "status": "ok",
+                "queue": queueManager.dictionary,
+            ])
+            let restoredState = engine.playbackState(queue: queueManager.dictionary)
+            emit("playbackStateChanged", restoredState)
+            return result
+        }
+    }
+
     func play(trackId: String? = nil) -> [String: Any] {
         queue.sync {
             let requestId = nextRequestId(prefix: "native-play")
@@ -160,6 +239,16 @@ final class NativePlaybackController {
     func getPlaybackState() -> [String: Any] {
         queue.sync {
             engine.playbackState(queue: queueManager.dictionary)
+        }
+    }
+
+    func setRepeatMode(_ mode: NativeRepeatMode) -> [String: Any] {
+        queue.sync {
+            queueManager.setRepeatMode(mode)
+            let state = engine.playbackState(queue: queueManager.dictionary)
+            emit("queueChanged", state)
+            emit("playbackStateChanged", state)
+            return state
         }
     }
 
@@ -318,9 +407,11 @@ final class NativePlaybackController {
         let indices: [Int]
         switch direction {
         case .next:
-            indices = queueManager.currentIndex + 1 < queueManager.trackIds.count ? Array((queueManager.currentIndex + 1)..<queueManager.trackIds.count) : []
+            // Repeat-one affects natural completion only. A manual skip must still
+            // advance, just like the controls in full-size music players.
+            indices = queueManager.nextCandidateIndices(wrapping: queueManager.repeatMode != .off)
         case .previous:
-            indices = queueManager.currentIndex > 0 ? Array(stride(from: queueManager.currentIndex - 1, through: 0, by: -1)) : []
+            indices = queueManager.previousCandidateIndices(wrapping: queueManager.repeatMode != .off)
         }
 
         guard !indices.isEmpty else {
@@ -336,8 +427,11 @@ final class NativePlaybackController {
                     return playbackErrorResponse(code: "queue_start", message: "No previous track is available", requestId: requestId)
                 }
             }
-            print("[NativeQueue] abort index out of range nextIndex=\(queueManager.currentIndex + 1) count=\(queueManager.trackIds.count)")
-            return playbackErrorResponse(code: "queue_end", message: "No next track is available", requestId: requestId)
+            print("[NativeQueue] next reached queue end requestId=\(requestId)")
+            var state = engine.playbackState(queue: queueManager.dictionary)
+            state["requestId"] = requestId
+            state["queueBoundary"] = "end"
+            return state
         }
 
         for index in indices {
@@ -472,7 +566,12 @@ final class NativePlaybackController {
         let failureResponse = playbackErrorResponse(code: code, message: message, trackId: trackId, requestId: originalRequestId)
         guard skipOnFailure else { return failureResponse }
         print("[NativeQueue] failure skip requested originalRequestId=\(originalRequestId) failedTrackId=\(trackId)")
-        while let recovery = recoveryCandidate(after: trackId, originalRequestId: originalRequestId) {
+        while let recovery = recoveryCandidate(
+            after: trackId,
+            originalRequestId: originalRequestId,
+            wrapping: queueManager.repeatMode == .all,
+            allowSameTrack: false
+        ) {
             print("[NativeQueue] skip failed track originalRequestId=\(originalRequestId) failedTrackId=\(trackId) nextCandidateId=\(recovery.track.id)")
             let state = loadTrack(recovery.track, at: recovery.index, requestId: originalRequestId, shouldRestartLoadedTrack: true, skipOnFailure: false)
             if isSuccessfulPlaybackResponse(state) {
@@ -487,14 +586,15 @@ final class NativePlaybackController {
         return failureResponse
     }
 
-    private func recoveryCandidate(after failedTrackId: String, originalRequestId: String) -> (index: Int, track: NativeTrack)? {
-        let snapshot = queueManager.trackIds
-        guard snapshot.count > 1 else { return nil }
-        let startIndex = snapshot.firstIndex(of: failedTrackId) ?? queueManager.currentIndex
-        for offset in 1..<snapshot.count {
-            let candidateIndex = (startIndex + offset) % snapshot.count
-            let candidateId = snapshot[candidateIndex]
-            if candidateId == failedTrackId { continue }
+    private func recoveryCandidate(
+        after failedTrackId: String,
+        originalRequestId: String,
+        wrapping: Bool,
+        allowSameTrack: Bool
+    ) -> (index: Int, track: NativeTrack)? {
+        for candidateIndex in queueManager.nextCandidateIndices(wrapping: wrapping) {
+            let candidateId = queueManager.trackIds[candidateIndex]
+            if !allowSameTrack, candidateId == failedTrackId { continue }
             print("[NativeQueue] recovery candidate selected index=\(candidateIndex) trackId=\(candidateId)")
             if let track = validateCandidate(index: candidateIndex, requestId: originalRequestId) {
                 return (candidateIndex, track)
@@ -598,17 +698,72 @@ final class NativePlaybackController {
             }
             self.beginTransition(requestId: requestId, source: "auto-next")
             defer { self.endTransition(requestId: requestId, reason: "auto-next-finished") }
-            if let candidate = self.recoveryCandidate(after: track.id, originalRequestId: requestId) {
+
+            if self.queueManager.repeatMode == .one,
+               let repeatedTrack = self.validateCandidate(index: self.queueManager.currentIndex, requestId: requestId) {
+                print("[NativeQueue] repeat-one requestId=\(requestId) trackId=\(repeatedTrack.id)")
+                let result = self.loadTrack(
+                    repeatedTrack,
+                    at: self.queueManager.currentIndex,
+                    requestId: requestId,
+                    shouldRestartLoadedTrack: true,
+                    skipOnFailure: true
+                )
+                if self.isSuccessfulPlaybackResponse(result) {
+                    return
+                }
+                self.finishCompletedTrack(track)
+                return
+            }
+
+            let shouldWrap = self.queueManager.repeatMode == .all
+            if let candidate = self.recoveryCandidate(
+                after: track.id,
+                originalRequestId: requestId,
+                wrapping: shouldWrap,
+                allowSameTrack: shouldWrap && self.queueManager.trackIds.count == 1
+            ) {
                 print("[NativeQueue] next requested source=auto-next requestId=\(requestId)")
-                _ = self.loadTrack(candidate.track, at: candidate.index, requestId: requestId, shouldRestartLoadedTrack: true, skipOnFailure: true)
+                let result = self.loadTrack(candidate.track, at: candidate.index, requestId: requestId, shouldRestartLoadedTrack: true, skipOnFailure: true)
+                if !self.isSuccessfulPlaybackResponse(result),
+                   !self.restartCurrentTrackForRepeatAll(requestId: requestId) {
+                    self.finishCompletedTrack(track)
+                }
+            } else if shouldWrap,
+                      self.restartCurrentTrackForRepeatAll(requestId: requestId) {
+                return
             } else {
-                self.stopProgressTimer()
-                let state = self.engine.playbackState(queue: self.queueManager.dictionary)
-                self.nowPlayingManager.updateStopped(elapsedTime: state["currentTime"] as? Double ?? 0)
-                self.emit("playbackStateChanged", state)
-                self.emit("trackEnded", ["status": "ok", "track": track.dictionary])
+                self.finishCompletedTrack(track)
             }
         }
+    }
+
+    /// Repeat-all should remain continuous even when every other queue entry is
+    /// unavailable. The just-finished, known-good current track is the final fallback.
+    private func restartCurrentTrackForRepeatAll(requestId: String) -> Bool {
+        guard queueManager.repeatMode == .all,
+              let repeatedTrack = validateCandidate(
+                  index: queueManager.currentIndex,
+                  requestId: requestId
+              ) else {
+            return false
+        }
+        let result = loadTrack(
+            repeatedTrack,
+            at: queueManager.currentIndex,
+            requestId: requestId,
+            shouldRestartLoadedTrack: true,
+            skipOnFailure: false
+        )
+        return isSuccessfulPlaybackResponse(result)
+    }
+
+    private func finishCompletedTrack(_ track: NativeTrack) {
+        stopProgressTimer()
+        let state = engine.playbackState(queue: queueManager.dictionary)
+        nowPlayingManager.updateStopped(elapsedTime: state["currentTime"] as? Double ?? 0)
+        emit("playbackStateChanged", state)
+        emit("trackEnded", ["status": "ok", "track": track.dictionary])
     }
 
     private func handleInterruptionBegan() {
@@ -714,7 +869,13 @@ final class NativePlaybackController {
         return status == "ok" || status == "ignored"
     }
 
-    private func playbackErrorResponse(code: String, message: String, trackId: String? = nil, requestId: String? = nil) -> [String: Any] {
+    private func playbackErrorResponse(
+        code: String,
+        message: String,
+        trackId: String? = nil,
+        requestId: String? = nil,
+        shouldEmit: Bool = true
+    ) -> [String: Any] {
         var response: [String: Any] = [
             "status": "error",
             "code": code,
@@ -726,7 +887,9 @@ final class NativePlaybackController {
         if let requestId = requestId {
             response["requestId"] = requestId
         }
-        emit("playbackError", response)
+        if shouldEmit {
+            emit("playbackError", response)
+        }
         return response
     }
 

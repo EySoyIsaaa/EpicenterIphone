@@ -17,14 +17,14 @@ struct EpicenterDSPParameters {
 
 struct EpicenterDSPCalibration {
     float subDepth = 1.0f;
-    float deepExtensionAmount = 0.36f;
-    float synthDepthGain = 1.18f;
-    float gateDetectorFloor = 0.40f;
-    float gateDetectorAuthority = 0.22f;
-    float outputDcHighpassHz = 26.0f;
-    float deepExtensionSubsonicHighpassHz = 23.0f;
-    float deepExtensionMixBase = 0.46f;
-    float deepExtensionMixVoice = 0.58f;
+    float deepExtensionAmount = 0.18f;
+    float synthDepthGain = 1.0f;
+    float gateDetectorFloor = 0.25f;
+    float gateDetectorAuthority = 0.0f;
+    float outputDcHighpassHz = 32.0f;
+    float deepExtensionSubsonicHighpassHz = 24.0f;
+    float deepExtensionMixBase = 0.32f;
+    float deepExtensionMixVoice = 0.42f;
 };
 
 class BiquadFilter {
@@ -74,6 +74,8 @@ public:
     void setParameters(float intensity, float sweepFreq, float width, float balance, float volume);
     EpicenterDSPParameters parameters() const;
     EpicenterDSPCalibration calibration() const;
+    /// With the effect active, output stays finite but may exceed [-1, 1].
+    /// The host must apply a downstream peak limiter before hardware output.
     void process(float* const* channels, int channelCount, std::size_t frameCount);
 private:
     struct ChannelState {
@@ -105,6 +107,7 @@ private:
         EnvelopeFollower deepExtensionEnv;
         float lastDetector = 0;
         float flipState = 1;
+        float flipSmoothed = 1;
         int holdSamples = 0;
     };
     struct DerivedFrequencies {

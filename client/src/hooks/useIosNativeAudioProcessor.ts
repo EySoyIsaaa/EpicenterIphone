@@ -62,6 +62,11 @@ export function useIosNativeAudioProcessor() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [playbackStrategy, setPlaybackStrategy] = useState<
+    "full-buffer-dsp" | "streaming-file"
+  >("full-buffer-dsp");
+  const [epicenterCustomProcessing, setEpicenterCustomProcessing] =
+    useState(true);
   const [currentTrackId, setCurrentTrackId] = useState<string | null>(null);
   const [currentTrack, setCurrentTrack] = useState<IOSAppTrack | null>(null);
   const [epicenterEnabled, setEpicenterEnabledState] = useState(false);
@@ -77,9 +82,9 @@ export function useIosNativeAudioProcessor() {
   const [eqBands, setEqBands] = useState<EqBand[]>(DEFAULT_EQ_BANDS);
   const [spatialEffects, setSpatialEffects] = useState({
     reverbEnabled: false,
-    reverbAmount: 0,
+    reverbAmount: 35,
     concertHallEnabled: false,
-    concertHallAmount: 0,
+    concertHallAmount: 45,
   });
   const onTrackEndedRef = useRef<(() => void) | null>(null);
   const onTrackErrorRef = useRef<((error: unknown) => void) | null>(null);
@@ -187,6 +192,12 @@ export function useIosNativeAudioProcessor() {
       setDuration(
         state.duration || (state.durationMs ? state.durationMs / 1000 : 0),
       );
+      if (state.playbackStrategy) {
+        setPlaybackStrategy(state.playbackStrategy);
+      }
+      if (typeof state.epicenterCustomProcessing === "boolean") {
+        setEpicenterCustomProcessing(state.epicenterCustomProcessing);
+      }
       const nextTrackId =
         state.currentTrackId ?? state.currentTrack?.id ?? null;
       currentTrackIdRef.current = nextTrackId;
@@ -322,7 +333,7 @@ export function useIosNativeAudioProcessor() {
       try {
         const state = await EpicenterNative.play({ trackId });
         applyState(state);
-        return true;
+        return state?.status === "ok" || state?.status === "ignored";
       } catch (error) {
         reportError(error);
         return false;
@@ -532,6 +543,8 @@ export function useIosNativeAudioProcessor() {
     () => ({
       currentTime,
       duration,
+      playbackStrategy,
+      epicenterCustomProcessing,
       isPlaying,
       currentTrackId,
       currentTrack,
@@ -576,6 +589,8 @@ export function useIosNativeAudioProcessor() {
     [
       currentTime,
       duration,
+      playbackStrategy,
+      epicenterCustomProcessing,
       isPlaying,
       currentTrackId,
       currentTrack,

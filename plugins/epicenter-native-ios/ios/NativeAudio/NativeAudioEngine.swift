@@ -1,3 +1,4 @@
+import AudioToolbox
 import AVFoundation
 import Foundation
 
@@ -80,10 +81,13 @@ final class NativeAudioEngine {
         12500, 16000, 20000,
     ]
     private static let eqGainRange: ClosedRange<Float> = -8...8
-    private static let maxHeadroomDb: Float = 10
-    private static let maxNativeReverbWetDryMix: Float = 55
-    private static let maxConcertHallWetDryMix: Float = 45
-    private static let maxFullBufferMemoryBytes: Int64 = 512 * 1024 * 1024
+    private static let maxReverbReturnGain: Float = 0.42
+    private static let maxConcertHallReturnGain: Float = 0.50
+    // Full-buffer playback is required by the custom Epicenter source-node DSP, but
+    // decoding a long Hi-Res track to deinterleaved Float32 can consume hundreds of MB.
+    // Above this conservative budget we use AVAudioPlayerNode file-segment playback so
+    // AVFoundation can stream the file without putting the whole decoded song in RAM.
+    private static let maxFullBufferMemoryBytes: Int64 = 128 * 1024 * 1024
     private static let maxSafeDSPBitDepth = 24
     private static let maxSafeDSPSampleRate = 192_000.0
 
@@ -94,6 +98,19 @@ final class NativeAudioEngine {
     private let eqNode = AVAudioUnitEQ(numberOfBands: NativeAudioEngine.eqFrequencies.count)
     private let reverbNode = AVAudioUnitReverb()
     private let concertHallNode = AVAudioUnitReverb()
+    private let reverbReturnMixer = AVAudioMixerNode()
+    private let concertHallReturnMixer = AVAudioMixerNode()
+    private let fxSumMixer = AVAudioMixerNode()
+    private let peakLimiterNode: AVAudioUnitEffect = {
+        let description = AudioComponentDescription(
+            componentType: kAudioUnitType_Effect,
+            componentSubType: kAudioUnitSubType_PeakLimiter,
+            componentManufacturer: kAudioUnitManufacturer_Apple,
+            componentFlags: 0,
+            componentFlagsMask: 0
+        )
+        return AVAudioUnitEffect(audioComponentDescription: description)
+    }()
     private let fallbackPlayerNode = AVAudioPlayerNode()
     private var sourceNode: AVAudioSourceNode?
     private var audioFile: AVAudioFile?
@@ -108,11 +125,10 @@ final class NativeAudioEngine {
     private var eqEnabled = false
     private var eqGains = Array(repeating: Float(0), count: NativeAudioEngine.eqFrequencies.count)
     private var reverbEnabled = false
-    private var reverbAmount: Float = 0
+    private var reverbAmount: Float = 35
     private var concertHallEnabled = false
-    private var concertHallAmount: Float = 0
-    // Fallback AVAudioPlayerNode path (currently inert: the full-buffer source node is
-    // the active path). Declared so the legacy fallback branches compile cleanly.
+    private var concertHallAmount: Float = 45
+    // Large decoded files use this streaming source to keep peak memory bounded.
     private var isFallbackPlayback = false
     private var fallbackAudioFile: AVAudioFile?
     private var fallbackStartTime: AVAudioTime?
@@ -141,18 +157,22 @@ final class NativeAudioEngine {
     init() {
         engine.attach(eqNode)
         engine.attach(reverbNode)
-        engine.attach(fallbackPlayerNode)
         engine.attach(concertHallNode)
+        engine.attach(reverbReturnMixer)
+        engine.attach(concertHallReturnMixer)
+        engine.attach(fxSumMixer)
+        engine.attach(peakLimiterNode)
+        engine.attach(fallbackPlayerNode)
         configureEQNode()
         reverbNode.loadFactoryPreset(.mediumRoom)
         concertHallNode.loadFactoryPreset(.largeHall)
         reverbNode.bypass = true
         concertHallNode.bypass = true
-        reverbNode.wetDryMix = 0
-        concertHallNode.wetDryMix = 0
-        engine.connect(eqNode, to: reverbNode, format: nil)
-        engine.connect(reverbNode, to: concertHallNode, format: nil)
-        engine.connect(concertHallNode, to: engine.mainMixerNode, format: nil)
+        reverbNode.wetDryMix = 100
+        concertHallNode.wetDryMix = 100
+        reverbReturnMixer.outputVolume = 0
+        concertHallReturnMixer.outputVolume = 0
+        peakLimiterNode.bypass = false
         configureSourceNode(format: AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)!)
         updateHeadroom()
         engine.prepare()
@@ -184,18 +204,25 @@ final class NativeAudioEngine {
         // reconnecting the AVAudioSourceNode does not take effect, so engine.start()
         // renders silence. That is why the first track (started from a fresh engine)
         // played, but a skipped/reloaded track stayed at 0:00 with no audio.
-        if engine.isRunning {
-            engine.stop()
-        }
+        // `pause()` leaves the graph initialized even though `isRunning` is false.
+        // Always stop before changing formats or reconnecting source nodes.
+        engine.stop()
         fallbackPlayerNode.stop()
+        isPlaying = false
+        isScheduled = false
         isFallbackPlayback = false
         fallbackAudioFile = nil
         fallbackStartTime = nil
         fallbackStartFrame = 0
+        pausedFrame = 0
+        scheduledStartFrame = 0
         // Release the previous decoded buffer before decoding the next one. Hi-Res tracks
         // can occupy hundreds of MB each as float32; keeping the old buffer alive while the
         // new one is allocated would briefly double peak memory on every skip.
         audioBuffer = nil
+        audioFile = nil
+        audioFormat = nil
+        loadedTrack = nil
 
         do {
             try loadFullBufferForDSP(track: track, localFilePath: localFilePath, startAt: seconds)
@@ -241,15 +268,24 @@ final class NativeAudioEngine {
         }
         let estimatedMemoryBytes = estimatedDecodedMemoryBytes(for: file)
         let estimatedMemoryMB = Double(estimatedMemoryBytes) / 1024.0 / 1024.0
-        print("[NativeAudioEngine] file sampleRate=\(file.processingFormat.sampleRate) channels=\(file.processingFormat.channelCount) estimatedMemoryMB=\(String(format: "%.1f", estimatedMemoryMB)) strategy=full-buffer")
+        let shouldStreamFromFile = estimatedMemoryBytes > NativeAudioEngine.maxFullBufferMemoryBytes
+        print("[NativeAudioEngine] file sampleRate=\(file.processingFormat.sampleRate) channels=\(file.processingFormat.channelCount) estimatedMemoryMB=\(String(format: "%.1f", estimatedMemoryMB)) strategy=\(shouldStreamFromFile ? "streaming-file" : "full-buffer")")
         guard file.length > 0 else {
             throw EngineError.noPlayableFrames
         }
         guard file.length <= AVAudioFramePosition(UInt32.max) else {
-            throw EngineError.fileTooLarge("Audio file has too many frames for a single decoded buffer")
+            // scheduleSegment also takes UInt32 frames. Keep this as a controlled failure
+            // until multi-segment scheduling is implemented instead of ending early.
+            throw EngineError.fileTooLarge("Audio file has too many frames for one scheduled playback segment")
         }
-        guard estimatedMemoryBytes <= NativeAudioEngine.maxFullBufferMemoryBytes else {
-            throw EngineError.fileTooLarge("Audio file requires \(String(format: "%.1f", estimatedMemoryMB)) MB decoded; limit is \(NativeAudioEngine.maxFullBufferMemoryBytes / 1024 / 1024) MB")
+        if shouldStreamFromFile {
+            try loadStreamingFile(
+                track: track,
+                file: file,
+                startAt: seconds,
+                estimatedMemoryMB: estimatedMemoryMB
+            )
+            return
         }
         guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)) else {
             print("[NativeAudioEngine] buffer allocation failed frames=\(file.length) format=\(file.processingFormat)")
@@ -280,7 +316,11 @@ final class NativeAudioEngine {
             throw EngineError.noLoadedTrack
         }
         if !isScheduled {
-            _ = try scheduleSegment(from: pausedFrame)
+            if isFallbackPlayback {
+                scheduleFallbackSegment(from: pausedFrame)
+            } else {
+                _ = try scheduleSegment(from: pausedFrame)
+            }
         }
         guard isScheduled else {
             throw EngineError.noPlayableFrames
@@ -292,6 +332,10 @@ final class NativeAudioEngine {
                 print("[NativeAudioEngine] engine start failed error=\(error.localizedDescription)")
                 throw EngineError.engineStartError(error.localizedDescription)
             }
+        }
+        if isFallbackPlayback {
+            fallbackPlayerNode.play()
+            fallbackStartTime = fallbackPlayerNode.lastRenderTime
         }
         isPlaying = true
     }
@@ -314,12 +358,16 @@ final class NativeAudioEngine {
         isScheduled = false
         pausedFrame = 0
         scheduledStartFrame = 0
+        fallbackStartTime = nil
+        fallbackStartFrame = 0
         epicenterDSP.reset()
         if clearTrack {
             loadedTrack = nil
             audioFile = nil
             audioBuffer = nil
             audioFormat = nil
+            fallbackAudioFile = nil
+            isFallbackPlayback = false
         }
     }
 
@@ -477,6 +525,11 @@ final class NativeAudioEngine {
             "stableId": jsonOrNull(loadedTrack?.stableId),
             "currentTrack": jsonOrNull(loadedTrack?.dictionary),
             "epicenter": epicenterDSP.stateDictionary(),
+            // The custom Epicenter core currently lives in the AVAudioSourceNode render
+            // callback. Large files deliberately bypass only that custom stage so they can
+            // stream safely; native EQ/Reverb/Concert Hall remain in the graph.
+            "playbackStrategy": isFallbackPlayback ? "streaming-file" : "full-buffer-dsp",
+            "epicenterCustomProcessing": !isFallbackPlayback,
             "eq": eqState(),
             "fx": fxState(),
         ]
@@ -514,19 +567,34 @@ final class NativeAudioEngine {
     }
 
     private func applyReverbState() {
-        reverbNode.bypass = !reverbEnabled || reverbAmount <= 0
-        reverbNode.wetDryMix = reverbEnabled ? (reverbAmount / 100) * NativeAudioEngine.maxNativeReverbWetDryMix : 0
+        let active = reverbEnabled && reverbAmount > 0
+        reverbNode.wetDryMix = 100
+        if active {
+            reverbNode.bypass = false
+            reverbReturnMixer.outputVolume = NativeAudioEngine.maxReverbReturnGain * sqrtf(reverbAmount / 100)
+        } else {
+            reverbReturnMixer.outputVolume = 0
+            reverbNode.bypass = true
+        }
     }
 
     private func applyConcertHallState() {
-        concertHallNode.bypass = !concertHallEnabled || concertHallAmount <= 0
-        concertHallNode.wetDryMix = concertHallEnabled ? (concertHallAmount / 100) * NativeAudioEngine.maxConcertHallWetDryMix : 0
+        let active = concertHallEnabled && concertHallAmount > 0
+        concertHallNode.wetDryMix = 100
+        if active {
+            concertHallNode.bypass = false
+            concertHallReturnMixer.outputVolume = NativeAudioEngine.maxConcertHallReturnGain * sqrtf(concertHallAmount / 100)
+        } else {
+            concertHallReturnMixer.outputVolume = 0
+            concertHallNode.bypass = true
+        }
     }
 
     private func updateHeadroom() {
-        let fxHeadroom = (reverbEnabled ? (reverbAmount / 100) * 3 : 0) + (concertHallEnabled ? (concertHallAmount / 100) * 4 : 0)
-        let totalHeadroom = min(NativeAudioEngine.maxHeadroomDb, (eqEnabled ? eqHeadroomDb() : 0) + fxHeadroom)
-        engine.mainMixerNode.outputVolume = powf(10, -totalHeadroom / 20)
+        // The EQ already applies its own headroom through eqNode.globalGain. Keep the
+        // master at unity: enabling spatial FX must never turn the whole song down.
+        // The Apple Peak Limiter after the parallel FX sum protects transient peaks.
+        engine.mainMixerNode.outputVolume = 1
     }
 
     private func eqHeadroomDb() -> Float {
@@ -556,10 +624,14 @@ final class NativeAudioEngine {
             "reverbEnabled": reverbEnabled,
             "reverbAmount": Double(reverbAmount),
             "reverbWetDryMix": Double(reverbNode.wetDryMix),
+            "reverbReturnGain": Double(reverbReturnMixer.outputVolume),
             "concertHallEnabled": concertHallEnabled,
             "concertHallAmount": Double(concertHallAmount),
             "concertHallWetDryMix": Double(concertHallNode.wetDryMix),
-            "combinedMode": "serial_reverb_then_concert_hall",
+            "concertHallReturnGain": Double(concertHallReturnMixer.outputVolume),
+            "dryGain": 1.0,
+            "peakLimiterEnabled": !peakLimiterNode.bypass,
+            "combinedMode": "parallel_dry_reverb_concert_hall_peak_limited",
             "outputVolume": Double(engine.mainMixerNode.outputVolume),
         ]
     }
@@ -573,6 +645,9 @@ final class NativeAudioEngine {
     }
 
     private func configureSourceNode(format: AVAudioFormat) {
+        // Only one source feeds the EQ input bus at a time. Disconnect the streaming
+        // player before restoring the full-buffer source-node path.
+        engine.disconnectNodeOutput(fallbackPlayerNode)
         if let sourceNode = sourceNode {
             engine.detach(sourceNode)
         }
@@ -629,27 +704,101 @@ final class NativeAudioEngine {
         }
         sourceNode = node
         engine.attach(node)
-        // Reconnect the ENTIRE processing chain at the source file's format, not just
-        // source -> eqNode. The EQ and reverb units do not resample, so if the chain
-        // downstream of the EQ stayed at the init rate (44.1kHz) while the source fed it
-        // 48/96/192kHz, the formats would mismatch and the engine would fail to render —
-        // which is why Hi-Res (24/48 and up) tracks did not play. The final mainMixerNode
-        // performs sample-rate conversion to the output hardware rate, so running the whole
-        // chain at the native rate gives true Hi-Res playback. (Safe here because load()
-        // fully stops the engine before reconfiguring.)
-        engine.connect(node, to: eqNode, format: format)
-        engine.connect(eqNode, to: reverbNode, format: format)
-        engine.connect(reverbNode, to: concertHallNode, format: format)
-        engine.connect(concertHallNode, to: engine.mainMixerNode, format: format)
+        // Reconnect the entire dry/FX graph at the source file's native format. The split
+        // branches remain at the same rate until the FX sum, and the final main mixer handles
+        // conversion to the hardware rate. load() stops the engine before this reconfiguration.
+        connectProcessingGraph(from: node, format: format)
         epicenterDSP.prepare(withSampleRate: format.sampleRate, channelCount: Int(format.channelCount), maxFrames: 8192)
         print("[iOS Epicenter DSP] prepared sampleRate=\(format.sampleRate) channels=\(format.channelCount)")
         print("[iOS Epicenter DSP] depth calibration constants \(epicenterDSP.calibrationDictionary())")
     }
 
+    private func loadStreamingFile(
+        track: NativeTrack,
+        file: AVAudioFile,
+        startAt seconds: Double,
+        estimatedMemoryMB: Double
+    ) throws {
+        audioFile = file
+        audioBuffer = nil
+        audioFormat = file.processingFormat
+        fallbackAudioFile = file
+        isFallbackPlayback = true
+        configureFallbackPlayer(format: file.processingFormat)
+        epicenterDSP.reset()
+        loadedTrack = track
+        isPlaying = false
+        isScheduled = false
+        pausedFrame = framePosition(for: seconds, in: file)
+        scheduledStartFrame = pausedFrame
+        scheduleFallbackSegment(from: pausedFrame)
+        guard isScheduled else {
+            throw EngineError.noPlayableFrames
+        }
+        print("[NativeAudioEngine] streaming fallback active estimatedDecodedMemoryMB=\(String(format: "%.1f", estimatedMemoryMB)) epicenterCustomProcessing=false eqFxProcessing=true")
+    }
+
+    private func configureFallbackPlayer(format: AVAudioFormat) {
+        // AVAudioPlayerNode schedules the AVAudioFile itself instead of retaining one PCM
+        // buffer for the entire song. It enters the existing native EQ/FX chain at eqNode.
+        // The custom Epicenter source callback is intentionally not in this path.
+        if let sourceNode = sourceNode {
+            engine.disconnectNodeOutput(sourceNode)
+        }
+        connectProcessingGraph(from: fallbackPlayerNode, format: format)
+    }
+
+    /// Builds a unity-gain dry path plus independent 100%-wet Reverb and Hall returns.
+    /// All split branches stay at the source format until they meet at fxSumMixer; the
+    /// main mixer performs any final conversion to the hardware sample rate.
+    private func connectProcessingGraph(from inputNode: AVAudioNode, format: AVAudioFormat) {
+        if let sourceNode = sourceNode {
+            engine.disconnectNodeOutput(sourceNode)
+        }
+        engine.disconnectNodeOutput(fallbackPlayerNode)
+
+        let processingNodes: [AVAudioNode] = [
+            eqNode,
+            reverbNode,
+            concertHallNode,
+            reverbReturnMixer,
+            concertHallReturnMixer,
+            fxSumMixer,
+            peakLimiterNode,
+        ]
+        for node in processingNodes {
+            engine.disconnectNodeOutput(node)
+            engine.disconnectNodeInput(node)
+        }
+
+        engine.connect(inputNode, to: eqNode, format: format)
+        engine.connect(
+            eqNode,
+            to: [
+                AVAudioConnectionPoint(node: fxSumMixer, bus: 0),
+                AVAudioConnectionPoint(node: reverbNode, bus: 0),
+                AVAudioConnectionPoint(node: concertHallNode, bus: 0),
+            ],
+            fromBus: 0,
+            format: format
+        )
+        engine.connect(reverbNode, to: reverbReturnMixer, format: format)
+        engine.connect(concertHallNode, to: concertHallReturnMixer, format: format)
+        engine.connect(reverbReturnMixer, to: fxSumMixer, fromBus: 0, toBus: 1, format: format)
+        engine.connect(concertHallReturnMixer, to: fxSumMixer, fromBus: 0, toBus: 2, format: format)
+        engine.connect(fxSumMixer, to: peakLimiterNode, format: format)
+        engine.connect(peakLimiterNode, to: engine.mainMixerNode, format: format)
+        engine.prepare()
+    }
+
     private func estimatedDecodedMemoryBytes(for file: AVAudioFile) -> Int64 {
+        let frames = max(file.length, 0)
         let channels = max(Int64(file.processingFormat.channelCount), 1)
         let bytesPerSample = Int64(MemoryLayout<Float>.size)
-        return max(file.length, 0) * channels * bytesPerSample
+        let (sampleCount, sampleCountOverflow) = frames.multipliedReportingOverflow(by: channels)
+        guard !sampleCountOverflow else { return Int64.max }
+        let (byteCount, byteCountOverflow) = sampleCount.multipliedReportingOverflow(by: bytesPerSample)
+        return byteCountOverflow ? Int64.max : byteCount
     }
 
     private func scheduleSegment(from frame: AVAudioFramePosition) throws -> Bool {
@@ -697,8 +846,9 @@ final class NativeAudioEngine {
             file,
             startingFrame: clampedFrame,
             frameCount: AVAudioFrameCount(min(remainingFrames, AVAudioFramePosition(UInt32.max))),
-            at: nil
-        ) { [weak self] in
+            at: nil,
+            completionCallbackType: .dataPlayedBack
+        ) { [weak self] _ in
             DispatchQueue.main.async {
                 self?.handlePlaybackCompleted(token: token)
             }

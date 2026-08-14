@@ -20,12 +20,18 @@ export interface FxState {
   reverbEnabled: boolean;
   reverbAmount: number;
   reverbWetDryMix?: number;
+  reverbReturnGain?: number;
   concertHallEnabled: boolean;
   concertHallAmount: number;
   concertHallWetDryMix?: number;
+  concertHallReturnGain?: number;
+  dryGain?: number;
+  peakLimiterEnabled?: boolean;
   combinedMode?: string;
   outputVolume?: number;
 }
+
+export type RepeatMode = 'off' | 'all' | 'one';
 
 export interface EpicenterNativeIosPlugin {
   setEpicenterEnabled(params: { enabled: boolean }): Promise<{ status: string; epicenter: EpicenterState }>;
@@ -39,6 +45,9 @@ export interface EpicenterNativeIosPlugin {
   setReverbAmount(params: { amount: number }): Promise<FxState & { status: string }>;
   setConcertHallEnabled(params: { enabled: boolean }): Promise<FxState & { status: string }>;
   setConcertHallAmount(params: { amount: number }): Promise<FxState & { status: string }>;
+  setRepeatMode(params: { mode: RepeatMode }): Promise<Record<string, unknown>>;
+  setQueue(params: { trackIds: string[]; startIndex?: number }): Promise<Record<string, unknown>>;
+  setQueueAndPlay(params: { trackIds: string[]; startIndex?: number }): Promise<Record<string, unknown>>;
   getPlaybackState(): Promise<Record<string, unknown>>;
   addListener(eventName: string, listenerFunc: (event: Record<string, unknown>) => void): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;

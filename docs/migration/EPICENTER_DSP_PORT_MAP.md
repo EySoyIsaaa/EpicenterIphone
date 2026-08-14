@@ -8,7 +8,7 @@ Implementación nativa:
 - Bridge Objective-C++ para Swift: `plugins/epicenter-native-ios/ios/DSP/EpicenterDSPBridge.h` y `plugins/epicenter-native-ios/ios/DSP/EpicenterDSPBridge.mm`.
 - Integración AVAudioEngine: `plugins/epicenter-native-ios/ios/NativeAudio/NativeAudioEngine.swift`.
 
-## Tabla de mapeo 1:1
+## Tabla de mapeo del baseline
 
 | TS/Worklet original | Propósito | Equivalente nativo iOS | Notas de fidelidad |
 |---|---|---|---|
@@ -31,10 +31,10 @@ Implementación nativa:
 | `parameterDescriptors.volume` | Salida 0–100. | `setEpicenterParams({ volume })`; alias `output`. | Mismo rango/default 100. |
 | `getDerivedFrequencies()` | Deriva detector, crossover, sub y extensión desde sweep/width. | `EpicenterDSPCore::getDerivedFrequencies()`. | Fórmulas copiadas: detector60/80/110, crossover, body, subTop, synth low/high y deepExtension. |
 | `StereoChannelState` | Estado persistente por canal. | `ChannelState`. | Conserva filtros de voz, presencia, bass program, body/dip, sub LPF, shelf, DC HPF y voice envelope. |
-| `MonoDetectorState` | Estado mono compartido. | `MonoState`. | Conserva bandas 60/80/110, mono LPF, diff HPF, synth HP/LP, deep extension, envelopes, `lastDetector`, `flipState`, `holdSamples`. |
+| `MonoDetectorState` | Estado mono compartido. | `MonoState`. | Conserva bandas 60/80/110, mono LPF, diff HPF, synth HP/LP, deep extension, envelopes, `lastDetector`, `flipState`, `flipSmoothed` y `holdSamples`. |
 | `computeGate()` | Gate musical contra voz/ausencia de bajo. | `EpicenterDSPCore::computeGate()`. | Misma actividad detector × music score. |
 | Bypass `intensity <= 0.01` | Salida limpia. | Bypass cuando `enabled=false` o `intensity<=0.01`. | Añade switch explícito nativo; bypass solo sanea denormals/NaN. |
-| Mono detector loop | Detecta bajo dominante L+R y diferencia estéreo. | Primer loop de `processChunk()`. | Mismo orden: mono/diff → bandas ponderadas → envelopes → flip → synth → gate/hold → subBuffer. |
+| Mono detector loop | Detecta bajo dominante L+R y diferencia estéreo. | Primer loop de `processChunk()`. | Conserva el orden base y suaviza el cambio de polaridad durante 1.5 ms antes del synth para evitar discontinuidades audibles. |
 | Deep extension loop | Genera capa subgrave baja protegida. | Segundo loop de `processChunk()`. | Mismo LPF, HPF subsonic 24 Hz, envelope sustain y soft clip. |
 | Channel render loop | Recombinación por canal. | Tercer loop de `processChunk()`. | Mismo orden voz limpia → bass program/body/dip → generated sub → shelf → output trim → soft clip → DC blocker. |
 | `subBuffer`/`deepExtensionBuffer` | Buffers internos reutilizables. | Vectores preasignados en `prepare()`. | Sin allocations en `process()`; bloques grandes se procesan en chunks. |
@@ -47,19 +47,44 @@ Implementación nativa:
 2. Si `enabled=false` o `intensity<=0.01`, bypass seguro.
 3. Actualizar coeficientes derivados si cambió `sweepFreq` o `width`.
 4. Calcular normalizaciones del Worklet: `intensityRawNorm`, `intensityScaledNorm`, `intensityNorm`, `balanceNorm`, `widthNorm`, `volumeGain`.
-5. Loop mono detector: mono/diff, bandas ponderadas, detector envelope, gate, flip de media frecuencia y `subBuffer`.
+5. Loop mono detector: mono/diff, bandas ponderadas, detector envelope, flip de media frecuencia suavizado durante 1.5 ms, gate y `subBuffer`.
 6. Loop deep extension: lowpass profundo, highpass subsónico, sustain envelope y soft clip hacia `deepExtensionBuffer`.
 7. Loop por canal: voz limpia/protegida, programa de bajo, sub generado, shelf de graves, trim, soft clip final y DC blocker.
-8. Clamp final nativo a `[-1, 1]` como protección de salida iOS.
+8. Salida flotante finita sin hard-clamp dentro del core; el limitador del host contiene los picos después de EQ/FX.
 
 ## Diferencias conocidas
 
 - La ruta iOS usa `enabled` explícito además del bypass por intensidad. El Worklet no tenía ese parámetro porque la UI desconectaba/bypasseaba el nodo.
-- El core nativo clampa NaN/Inf y salida final a `[-1,1]`; esto es protección de plataforma y no cambia la intención sonora.
+- El core nativo convierte NaN/Inf y denormals a cero, pero no hace hard-clamp de la señal musical. Con el efecto activo la salida flotante puede exceder `[-1, 1]`, por lo que el host debe incluir un peak limiter posterior.
 - El AudioWorklet podía recibir buffers arbitrarios y redimensionar `Float32Array`; el core nativo preasigna `8192` frames y procesa chunks para mantener cero allocations en el render.
 - El grafo iOS usa `AVAudioSourceNode` con audio decodificado en memoria para poder insertar DSP in-place en tiempo real sin reintroducir WebAudio. La arquitectura está documentada en `IOS_AUDIO_GRAPH.md`.
 
-## Calibración de profundidad subgrave (fase posterior al primer port)
+## Corrección vigente de zumbido y distorsión
+
+La implementación actual vuelve a la calibración conservadora del Worklet base y añade dos protecciones que conservan el golpe subarmónico sin convertir sus cambios de polaridad en una onda abrupta:
+
+| Área | Valor vigente | Motivo |
+|---|---:|---|
+| `DEEP_EXTENSION_AMOUNT` | `0.18` | Evita que la capa 30–40 Hz domine la mezcla o provoque excursión subsónica excesiva. |
+| `SYNTH_DEPTH_GAIN` | `1.0` | Mantiene la autoridad del sintetizado en el nivel de referencia. |
+| Deep mix | `0.32 + voiceProtection * 0.42` | Conserva profundidad sin sobrecargar el retorno profundo. |
+| Gate | floor `0.25`, authority `0.0`, detector `9.5` | El gate vuelve a depender del contenido musical del baseline. |
+| Intensity curve | lineal | Evita sobreganancia anticipada en valores medios. |
+| Output/deep HPF | `32 Hz` / `24 Hz` | Bloquea rumble y protege el sistema de reproducción. |
+| `subTopHz` / `deepExtensionHz` | `58–68 Hz` / `34–39 Hz` | Recupera las bandas derivadas del Worklet base. |
+| Polarity slew | `1.5 ms`, independiente del sample rate | Suaviza `flipState` hacia `flipSmoothed` sin allocations en el render thread. |
+| Synth/leveled blend | `0.85 / 0.15` | Reduce el componente casi cuadrado conservando el fundamental reconstruido. |
+| Salida del core | Float finito, sin hard-clamp | Evita mesetas antes del limitador y preserva la forma de onda. |
+
+En iOS, todas las rutas del grafo terminan en `fxSumMixer → Apple PeakLimiter → mainMixer`. El PeakLimiter del host es el único responsable de contener picos; `mainMixer` permanece a ganancia unitaria. El Audio Unit de Apple expone Attack, Decay y PreGain, pero no un parámetro de ceiling. La integración actual conserva sus valores predeterminados y no depende de IDs numéricos inventados.
+
+La prueba A/B offline de 90 segundos redujo las muestras en el rail de `5152` a `561` y la corrida plana máxima de `106` a `18` muestras antes del PeakLimiter de iOS. Con un tono de 80 Hz a -6 dBFS, el armónico de 120 Hz bajó aproximadamente 12 dB mientras el componente reconstruido de 40 Hz cambió menos de 1 dB.
+
+Referencia de plataforma: [Apple Peak Limiter Unit Parameters](https://developer.apple.com/documentation/audiounit/1389597-peak_limiter_unit_parameters).
+
+## Historial: calibración de profundidad subgrave (revertida)
+
+> Esta sección conserva el historial de afinación, pero sus valores reforzados ya no están vigentes. La corrección anterior restauró el baseline porque esta calibración producía zumbido y flat-tops en material masterizado.
 
 El primer port nativo fue deliberadamente conservador. En escucha comparativa con la ruta WebAudio/Worklet, iOS recuperaba el carácter del efecto pero con menor sensación de subgrave profundo. Esta fase agrega un modo interno de calibración `subDepth` sin exponer UI nueva y sin convertir el algoritmo en un bass boost genérico.
 
@@ -78,7 +103,9 @@ Cambios aplicados en el core C++:
 
 La salida con `enabled=false` permanece en bypass limpio: el core no aplica filtros, ganancia ni calibración tonal y solo sanea denormals/NaN por seguridad.
 
-## Ajuste fino de profundidad subgrave (fase EQ ±8 / metadata)
+## Historial: ajuste fino de profundidad subgrave (revertido)
+
+> Los valores de esta sección también fueron sustituidos por la corrección vigente documentada arriba.
 
 Se revisó la calibración real del core y se reforzó únicamente el DSP Epicenter; no se usó EQ ni FX para simular profundidad. Los cambios mantienen gate musical, soft clip, trim final y bypass limpio.
 

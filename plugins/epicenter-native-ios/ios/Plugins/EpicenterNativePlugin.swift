@@ -16,8 +16,10 @@ public class EpicenterNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "seek", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setQueue", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setQueueAndPlay", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "next", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "previous", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setRepeatMode", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setEpicenterEnabled", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setEpicenterParams", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setEpicenterMode", returnType: CAPPluginReturnPromise),
@@ -124,6 +126,12 @@ public class EpicenterNativePlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve(playbackController.setQueue(trackIds: trackIds, startIndex: startIndex))
     }
 
+    @objc func setQueueAndPlay(_ call: CAPPluginCall) {
+        let trackIds = call.getArray("trackIds", String.self) ?? []
+        let startIndex = call.getInt("startIndex") ?? 0
+        call.resolve(playbackController.setQueueAndPlay(trackIds: trackIds, startIndex: startIndex))
+    }
+
     @objc func next(_ call: CAPPluginCall) {
         let requestId = call.getString("requestId") ?? "bridge-next-\(UUID().uuidString)"
         NSLog("[Bridge] next command received requestId=\(requestId)")
@@ -134,6 +142,15 @@ public class EpicenterNativePlugin: CAPPlugin, CAPBridgedPlugin {
         let requestId = call.getString("requestId") ?? "bridge-previous-\(UUID().uuidString)"
         NSLog("[Bridge] previous command received requestId=\(requestId)")
         call.resolve(playbackController.previous(source: "bridge", requestId: requestId))
+    }
+
+    @objc func setRepeatMode(_ call: CAPPluginCall) {
+        guard let rawMode = call.getString("mode"),
+              let mode = NativeRepeatMode(rawValue: rawMode) else {
+            call.reject("Repeat mode must be off, all, or one")
+            return
+        }
+        call.resolve(playbackController.setRepeatMode(mode))
     }
 
     @objc func setEpicenterEnabled(_ call: CAPPluginCall) {

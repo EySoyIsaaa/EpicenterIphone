@@ -87,9 +87,7 @@ interface HomeLibraryViewProps
   visibleSongsCount: number;
   setVisibleSongsCount: (value: number | ((prev: number) => number)) => void;
   visibleArtistsCount: number;
-  setVisibleArtistsCount: (
-    value: number | ((prev: number) => number),
-  ) => void;
+  setVisibleArtistsCount: (value: number | ((prev: number) => number)) => void;
   playlistMenu: { playlist: Playlist; x: number; y: number } | null;
   setPlaylistMenu: (
     menu: { playlist: Playlist; x: number; y: number } | null,
@@ -526,7 +524,7 @@ export function HomeLibraryView({
                   >
                     <div
                       className="flex-1 flex items-center gap-3 min-w-0 cursor-pointer"
-                      onClick={() => onPlayNow(track)}
+                      onClick={() => onPlayNow(track, selectedPlaylistTracks)}
                     >
                       <div className="w-10 h-10 rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0">
                         <TrackArtwork
@@ -617,7 +615,9 @@ export function HomeLibraryView({
                       `${safeTitle(track)}-${index}`
                     }
                     track={track}
-                    onPlayNow={onPlayNow}
+                    onPlayNow={(selectedTrack) =>
+                      onPlayNow(selectedTrack, validSortedSongs)
+                    }
                     onAddToQueue={onAddToQueue}
                     onPlayNext={onPlayNext}
                     onAddToPlaylist={onOpenAddToPlaylist}
@@ -677,7 +677,9 @@ export function HomeLibraryView({
               <SwipeableTrackItem
                 key={track.id}
                 track={track}
-                onPlayNow={onPlayNow}
+                onPlayNow={(selectedTrack) =>
+                  onPlayNow(selectedTrack, hiResTracks)
+                }
                 onAddToQueue={onAddToQueue}
                 onPlayNext={onPlayNext}
                 onAddToPlaylist={onOpenAddToPlaylist}
@@ -739,7 +741,9 @@ export function HomeLibraryView({
                         <SwipeableTrackItem
                           key={track.id}
                           track={track}
-                          onPlayNow={onPlayNow}
+                          onPlayNow={(selectedTrack) =>
+                            onPlayNow(selectedTrack, safeTracks)
+                          }
                           onAddToQueue={onAddToQueue}
                           onPlayNext={onPlayNext}
                           onAddToPlaylist={onOpenAddToPlaylist}
@@ -752,8 +756,7 @@ export function HomeLibraryView({
                   </div>
                 );
               })}
-            {visibleArtistsCount <
-              Object.keys(songsByArtist ?? {}).length && (
+            {visibleArtistsCount < Object.keys(songsByArtist ?? {}).length && (
               <div className="py-4 text-center">
                 <button
                   onClick={() =>
@@ -795,7 +798,7 @@ export function HomeLibraryView({
                 >
                   <div
                     className="aspect-square rounded-lg bg-zinc-800 mb-2 overflow-hidden cursor-pointer"
-                    onClick={() => onPlayNow(firstTrack)}
+                    onClick={() => onPlayNow(firstTrack, safeTracks)}
                   >
                     <TrackArtwork
                       src={firstTrack.coverUrl}

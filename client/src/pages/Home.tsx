@@ -168,11 +168,19 @@ const getAudioCompatibilityUnsupportedReason = (
     typeof track.playbackUrl === "string" &&
     track.playbackUrl.length > 0;
 
-  if (!hasPreparedPlaybackFile && bitDepth && bitDepth > MAX_SAFE_DSP_BIT_DEPTH) {
+  if (
+    !hasPreparedPlaybackFile &&
+    bitDepth &&
+    bitDepth > MAX_SAFE_DSP_BIT_DEPTH
+  ) {
     return `bitDepth ${bitDepth} exceeds ${MAX_SAFE_DSP_BIT_DEPTH}`;
   }
 
-  if (!hasPreparedPlaybackFile && sampleRate && sampleRate > MAX_SAFE_DSP_SAMPLE_RATE) {
+  if (
+    !hasPreparedPlaybackFile &&
+    sampleRate &&
+    sampleRate > MAX_SAFE_DSP_SAMPLE_RATE
+  ) {
     return `sampleRate ${sampleRate} exceeds ${MAX_SAFE_DSP_SAMPLE_RATE}`;
   }
 
@@ -265,6 +273,7 @@ export default function Home() {
 
   // Ref para evitar recargar el archivo cuando cambian los params
   const currentTrackRef = useRef<string | null>(null);
+  const handledNativePlaybackRequestRef = useRef(queue.playbackRequestVersion);
   const initialLoadRef = useRef(true);
   const lastAutoPresetTrackRef = useRef<string | null>(null);
   const lastAutoPresetTimeRef = useRef(0);
@@ -724,12 +733,28 @@ export default function Home() {
     });
 
     audioProcessor.setOnTrackError((error) => {
-      const failedTrackId = queue.currentTrack?.id;
+      const nativeFailedTrackId =
+        typeof error === "object" &&
+        error !== null &&
+        "trackId" in error &&
+        typeof (error as { trackId?: unknown }).trackId === "string"
+          ? (error as { trackId: string }).trackId
+          : null;
+      const currentTrackId = queue.currentTrack?.id ?? null;
+      const failedTrackId = nativeFailedTrackId ?? currentTrackId;
       if (!failedTrackId) {
         return;
       }
 
       failedQueueTrackIdsRef.current.add(failedTrackId);
+      if (nativeFailedTrackId && nativeFailedTrackId !== currentTrackId) {
+        // An atomic library selection can fail before React publishes that new
+        // collection. Do not reset the unrelated track that is still selected;
+        // handlePlayNow reports the failed selection from its returned result.
+        console.warn("Playback selection rejected:", error);
+        return;
+      }
+
       clearPendingPlaybackTimers();
       audioProcessor.resetAfterError();
       currentTrackRef.current = null;
@@ -779,6 +804,15 @@ export default function Home() {
   // selection change, after the index has settled.
   useEffect(() => {
     const requestedTrack = queue.currentTrack;
+    const wasStartedAtomicallyByQueue =
+      queue.playbackRequestVersion !== handledNativePlaybackRequestRef.current;
+    handledNativePlaybackRequestRef.current = queue.playbackRequestVersion;
+
+    // Library/queue selections use the native atomic setQueueAndPlay command.
+    // Their state update is only a reflection of playback that already started.
+    if (wasStartedAtomicallyByQueue) {
+      return;
+    }
 
     if (!requestedTrack || requestedTrack.id === currentTrackRef.current) {
       return;
@@ -788,7 +822,7 @@ export default function Home() {
     playbackReasonRef.current = "queue-change";
     requestTrackPlayback(requestedTrack, reason);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queue.currentTrack?.id]);
+  }, [queue.currentTrack?.id, queue.playbackRequestVersion]);
 
   const handleFileSelect = useCallback(async () => {
     try {
@@ -966,10 +1000,22 @@ export default function Home() {
     setContextMenu(null);
   };
 
-  const handlePlayNow = (track: Track) => {
+  const handlePlayNow = async (track: Track, collection?: Track[]) => {
+    const previousTrackId = currentTrackRef.current ?? queue.currentTrack?.id ?? null;
     playbackReasonRef.current = "manual";
     currentTrackRef.current = null;
-    queue.playNow(track);
+    const playbackCollection =
+      collection?.some((candidate) => candidate.id === track.id) === true
+        ? collection
+        : sortedSongs.some((candidate) => candidate.id === track.id)
+          ? sortedSongs
+          : [track];
+    const played = await queue.playFromCollection(playbackCollection, track.id);
+    if (!played) {
+      currentTrackRef.current = previousTrackId;
+      toast.error(t("actions.errorLoadingTrackNoFallback"));
+      return;
+    }
     setContextMenu(null);
     setActiveTab("player");
     setShowQueue(false);
@@ -992,7 +1038,7 @@ export default function Home() {
     [queue, t],
   );
 
-  const handleShufflePlay = (tracks: Track[]) => {
+  const handleShufflePlay = async (tracks: Track[]) => {
     if (tracks.length === 0) {
       toast.error(t("actions.noSongsToPlay"));
       return;
@@ -1009,22 +1055,34 @@ export default function Home() {
       randomTitle: randomTrack.title,
       previousNowPlayingId: nowPlayingTrack?.id,
     });
+    const previousTrackId = currentTrackRef.current ?? queue.currentTrack?.id ?? null;
     playbackReasonRef.current = "shuffle";
     currentTrackRef.current = null;
-    queue.shuffleAll(tracks, randomTrack.id);
+    const played = await queue.shuffleAll(tracks, randomTrack.id);
+    if (!played) {
+      currentTrackRef.current = previousTrackId;
+      toast.error(t("actions.errorLoadingTrackNoFallback"));
+      return;
+    }
     toast.success(t("actions.playingShuffled", { count: tracks.length }));
     setActiveTab("player");
     setShowQueue(false);
   };
 
-  const handlePlayInOrder = (tracks: Track[]) => {
+  const handlePlayInOrder = async (tracks: Track[]) => {
     if (tracks.length === 0) {
       toast.error(t("actions.noSongsToPlay"));
       return;
     }
+    const previousTrackId = currentTrackRef.current ?? queue.currentTrack?.id ?? null;
     playbackReasonRef.current = "manual-order";
     currentTrackRef.current = null;
-    queue.playAllInOrder(tracks);
+    const played = await queue.playAllInOrder(tracks);
+    if (!played) {
+      currentTrackRef.current = previousTrackId;
+      toast.error(t("actions.errorLoadingTrackNoFallback"));
+      return;
+    }
     toast.success(t("actions.playingAll", { count: tracks.length }));
     setActiveTab("player");
     setShowQueue(false);
@@ -1482,10 +1540,15 @@ export default function Home() {
           reorderQueue: queue.reorderQueue,
           previousTrack: () => handlePreviousTrack("ui"),
           nextTrack: () => handleNextTrack("ui"),
+          shuffleEnabled: queue.shuffleEnabled,
+          toggleShuffle: queue.toggleShuffle,
+          repeatMode: queue.repeatMode,
+          cycleRepeatMode: queue.cycleRepeatMode,
         }}
         audioProcessor={{
           currentTime: audioProcessor.currentTime,
           duration: audioProcessor.duration,
+          epicenterCustomProcessing: audioProcessor.epicenterCustomProcessing,
           isPlaying: audioProcessor.isPlaying,
           seek: audioProcessor.seek,
           pause: audioProcessor.pause,

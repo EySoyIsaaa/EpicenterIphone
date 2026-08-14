@@ -87,17 +87,21 @@ export function HomeFxView({
       </section>
 
       <section className="mt-4 rounded-3xl border border-[var(--ep-border)] bg-[#080808] p-5">
-        <p className="premium-title mb-4 text-sm font-black text-white">Salida / Diagnóstico de señal</p>
+        <p className="premium-title mb-4 text-sm font-black text-white">{t("fx.signalDiagnostics")}</p>
         <div className="grid grid-cols-3 gap-3 text-center">
-          {["Limiter", "Phase", "Crossover"].map((label) => (
+          {[
+            [t("fx.limiter"), t("fx.protected")],
+            [t("fx.dryPath"), t("fx.unity")],
+            [t("fx.routing"), t("fx.parallel")],
+          ].map(([label, value]) => (
             <div key={label} className="rounded-2xl border border-[var(--ep-border)] bg-[#111] p-3">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ep-text-muted)]">{label}</p>
-              <p className="mt-1 text-xs font-bold text-white">Ready</p>
+              <p className="mt-1 text-xs font-bold text-white">{value}</p>
             </div>
           ))}
         </div>
         <div className="mt-5 space-y-2">
-          <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ep-text-muted)]"><span>Signal</span><span>-3 dB</span></div>
+          <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.14em] text-[var(--ep-text-muted)]"><span>{t("fx.signal")}</span><span>{t("fx.unityGain")}</span></div>
           <div className="flex h-10 items-end gap-1 rounded-xl border border-[var(--ep-border)] bg-black p-2">
             {SIGNAL_METER_BARS.map((height, index) => <span key={index} className="signal-meter-bar flex-1 rounded-sm" style={{ height: `${height}%`, opacity: 0.28 + index / 18 }} />)}
           </div>

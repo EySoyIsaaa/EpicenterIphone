@@ -6,7 +6,7 @@ import SwiftUI
 struct RootView: View {
     var body: some View {
         TabView {
-            PlaceholderScreen(title: "Inicio", systemImage: "play.circle.fill")
+            EngineTestScreen()   // Fase 0b: prueba del motor nativo (temporal, será el reproductor)
                 .tabItem { Label("Inicio", systemImage: "play.circle.fill") }
 
             PlaceholderScreen(title: "Mi Música", systemImage: "music.note.list")

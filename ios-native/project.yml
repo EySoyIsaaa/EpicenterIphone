@@ -19,12 +19,32 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+      # Servicios nativos existentes (reutilizados, SIN el envoltorio de Capacitor).
+      # Se referencian en su ubicación actual: una sola copia, sin duplicar.
+      - path: ../plugins/epicenter-native-ios/ios/DSP
+        name: Services/DSP
+      - path: ../plugins/epicenter-native-ios/ios/NativeAudio
+        name: Services/NativeAudio
+      - path: ../plugins/epicenter-native-ios/ios/CarPlay
+        name: Services/CarPlay
+    dependencies:
+      - sdk: AVFoundation.framework
+      - sdk: AudioToolbox.framework
+      - sdk: MediaPlayer.framework
+      - sdk: Accelerate.framework
+      - sdk: CarPlay.framework
+      - sdk: UniformTypeIdentifiers.framework
+      - sdk: libsqlite3.tbd
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.epicenterdsp.player
         PRODUCT_NAME: EpicenterDSP
         INFOPLIST_FILE: Support/Info.plist
         GENERATE_INFOPLIST_FILE: "NO"
-        TARGETED_DEVICE_FAMILY: "1"        # solo iPhone
+        TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
-        ENABLE_USER_SCRIPT_SANDBOXING: "YES"
+        CLANG_CXX_LANGUAGE_STANDARD: "c++17"
+        CLANG_CXX_LIBRARY: "libc++"
+        SWIFT_OBJC_BRIDGING_HEADER: Support/Epicenter-Bridging-Header.h
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/../plugins/epicenter-native-ios/ios/DSP

@@ -1,47 +1,42 @@
 import SwiftUI
 
-/// The 5-tab shell that matches the app's bottom navigation:
+/// Shell de 5 pestañas + mini-reproductor.
 /// Inicio · Mi Música · Buscar · DSP · Ajustes.
-/// Each tab is a placeholder for now; real screens are filled in per phase.
 struct RootView: View {
-    var body: some View {
-        TabView {
-            EngineTestScreen()   // Fase 0b: prueba del motor nativo (temporal, será el reproductor)
-                .tabItem { Label("Inicio", systemImage: "play.circle.fill") }
+    @ObservedObject private var audio = AudioService.shared
+    @State private var selection: Tab = .inicio
 
-            LibraryScreen()
-                .tabItem { Label("Mi Música", systemImage: "music.note.list") }
-
-            PlaceholderScreen(title: "Buscar", systemImage: "magnifyingglass")
-                .tabItem { Label("Buscar", systemImage: "magnifyingglass") }
-
-            PlaceholderScreen(title: "DSP", systemImage: "waveform")
-                .tabItem { Label("DSP", systemImage: "waveform") }
-
-            PlaceholderScreen(title: "Ajustes", systemImage: "gearshape.fill")
-                .tabItem { Label("Ajustes", systemImage: "gearshape.fill") }
-        }
-        .tint(Theme.red)
-    }
-}
-
-private struct PlaceholderScreen: View {
-    let title: String
-    let systemImage: String
+    enum Tab { case inicio, musica, buscar, dsp, ajustes }
 
     var body: some View {
-        ZStack {
-            Theme.background.ignoresSafeArea()
-            VStack(spacing: 12) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 44, weight: .semibold))
-                    .foregroundStyle(Theme.red)
-                Text(title)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(Theme.textPrimary)
-                Text("Pantalla nativa — próximamente")
-                    .font(.footnote)
-                    .foregroundStyle(Theme.textSecondary)
+        ZStack(alignment: .bottom) {
+            TabView(selection: $selection) {
+                PlayerScreen()
+                    .tag(Tab.inicio)
+                    .tabItem { Label("Inicio", systemImage: "play.circle.fill") }
+
+                LibraryScreen()
+                    .tag(Tab.musica)
+                    .tabItem { Label("Mi Música", systemImage: "music.note.list") }
+
+                SearchScreen()
+                    .tag(Tab.buscar)
+                    .tabItem { Label("Buscar", systemImage: "magnifyingglass") }
+
+                DspScreen()
+                    .tag(Tab.dsp)
+                    .tabItem { Label("DSP", systemImage: "waveform") }
+
+                SettingsScreen()
+                    .tag(Tab.ajustes)
+                    .tabItem { Label("Ajustes", systemImage: "gearshape.fill") }
+            }
+            .tint(Theme.red)
+
+            // Mini-reproductor sobre la barra de pestañas (excepto en Inicio, que ya es el reproductor).
+            if audio.hasTrack && selection != .inicio {
+                MiniPlayer { selection = .inicio }
+                    .padding(.bottom, 52)
             }
         }
     }

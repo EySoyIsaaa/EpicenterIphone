@@ -16,11 +16,12 @@ struct SongsList: View {
         } else {
             List {
                 ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
-                    TrackRow(track: track, isCurrent: audio.currentTrackId == track.id)
-                        .contentShape(Rectangle())
-                        .onTapGesture { audio.play(tracks, startAt: index) }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparatorTint(Theme.border)
+                    Button { audio.play(tracks, startAt: index) } label: {
+                        TrackRow(track: track, isCurrent: audio.currentTrackId == track.id)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparatorTint(Theme.border)
                 }
             }
             .listStyle(.plain)

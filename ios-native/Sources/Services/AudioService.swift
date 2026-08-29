@@ -38,6 +38,7 @@ final class AudioService: ObservableObject {
     // EQ
     @Published var eqEnabled = false
     @Published var eqBands: [Double] = Array(repeating: 0, count: 31)
+    @Published var autoEqEnabled = false
 
     // Effects
     @Published var reverbEnabled = false
@@ -193,6 +194,12 @@ final class AudioService: ObservableObject {
         _ = playback.setEqBand(index: index, gain: gain)
     }
     func resetEq() { eqBands = Array(repeating: 0, count: 31); _ = playback.resetEq() }
+    /// Auto-EQ: analiza cada canción en el dispositivo y aplica una curva automática.
+    func setAutoEqEnabled(_ on: Bool) {
+        autoEqEnabled = on
+        UserDefaults.standard.set(on, forKey: "autoEqEnabled")
+        _ = playback.setAutoEqEnabled(on)
+    }
 
     // MARK: Effects
 
@@ -220,6 +227,8 @@ final class AudioService: ObservableObject {
         }
         headphonesMode = (UserDefaults.standard.string(forKey: "epicenterMode") ?? "car") == "headphones"
         _ = playback.setEpicenterMode(headphones: headphonesMode)
+        autoEqEnabled = UserDefaults.standard.bool(forKey: "autoEqEnabled")
+        if autoEqEnabled { _ = playback.setAutoEqEnabled(true) }
     }
 
     private func apply(event: String, data: [String: Any]) {

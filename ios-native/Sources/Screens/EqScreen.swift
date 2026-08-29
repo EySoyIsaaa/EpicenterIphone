@@ -19,6 +19,9 @@ struct EqScreen: View {
                 .tint(Theme.red)
                 .padding(.horizontal)
 
+                autoEqBanner
+                    .padding(.horizontal)
+
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .bottom, spacing: 16) {
                         ForEach(0..<31, id: \.self) { i in
@@ -38,6 +41,25 @@ struct EqScreen: View {
         }
         .navigationTitle("Ecualizador")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var autoEqBanner: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "wand.and.stars").foregroundStyle(Theme.red)
+                Text("Ajuste automático del ecualizador")
+                    .font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Toggle("", isOn: Binding(get: { audio.autoEqEnabled }, set: { audio.setAutoEqEnabled($0) }))
+                    .labelsHidden()
+                    .tint(Theme.red)
+            }
+            Text("Analiza el audio en tu dispositivo y aplica un ajuste automático por canción para mantener un sonido potente, claro y estable.")
+                .font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+        }
+        .padding(12)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.red.opacity(0.35), lineWidth: 1))
     }
 
     private func bandColumn(_ i: Int) -> some View {

@@ -1,11 +1,17 @@
 import SwiftUI
 
-/// Ajustes: enlaces externos (privacidad/términos) y versión.
-/// (Idioma y tema se agregan en una pasada posterior.)
+/// Ajustes: guía de uso, enlaces legales externos (privacidad/términos) y "Acerca de".
 struct SettingsScreen: View {
     // TODO: reemplazar por las URLs reales de tu sitio.
     private let privacyURL = URL(string: "https://epicenterdsp.app/privacidad")!
     private let termsURL = URL(string: "https://epicenterdsp.app/terminos")!
+
+    private let features = [
+        "Ecualizador de 31 bandas",
+        "Procesador Epicenter DSP",
+        "Soporte Hi-Res Audio",
+        "Controles en notificación",
+    ]
 
     private var appVersion: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -19,42 +25,63 @@ struct SettingsScreen: View {
                 Theme.background.ignoresSafeArea()
                 List {
                     Section {
-                        Link(destination: privacyURL) { row("Política de privacidad", "hand.raised.fill") }
-                        Link(destination: termsURL) { row("Términos y condiciones", "doc.text.fill") }
+                        NavigationLink(destination: HowToUseScreen()) {
+                            rowContent("Cómo usar", "book.fill")
+                        }
+                    } header: {
+                        Text("Guía").foregroundStyle(Theme.textMuted)
+                    }
+                    .listRowBackground(Theme.card)
+
+                    Section {
+                        Link(destination: privacyURL) { externalRow("Política de privacidad", "hand.raised.fill") }
+                        Link(destination: termsURL) { externalRow("Términos y condiciones", "doc.text.fill") }
                     } header: {
                         Text("Legal").foregroundStyle(Theme.textMuted)
                     }
+                    .listRowBackground(Theme.card)
 
                     Section {
                         HStack {
-                            Text("Versión").foregroundStyle(Theme.textPrimary)
+                            Text("EpicenterDSP").foregroundStyle(Theme.textPrimary)
                             Spacer()
                             Text(appVersion).foregroundStyle(Theme.textMuted)
                         }
+                        Text("Reproductor de música con procesador Epicenter DSP que reconstruye las frecuencias bajas perdidas en la compresión de audio.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.textSecondary)
+                        ForEach(features, id: \.self) { feature in
+                            HStack(spacing: 10) {
+                                Circle().fill(Theme.red).frame(width: 6, height: 6)
+                                Text(feature).font(.system(size: 14)).foregroundStyle(Theme.textSecondary)
+                            }
+                        }
+                    } header: {
+                        Text("Acerca de").foregroundStyle(Theme.textMuted)
                     }
                     .listRowBackground(Theme.card)
                 }
                 .listStyle(.insetGrouped)
-                .scrollContentBackgroundHidden()
+                .scrollContentBackgroundHiddenCompat()
             }
             .navigationTitle("Ajustes")
         }
         .navigationViewStyle(.stack)
     }
 
-    private func row(_ title: String, _ icon: String) -> some View {
+    private func rowContent(_ title: String, _ icon: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon).foregroundStyle(Theme.red).frame(width: 24)
+            Text(title).foregroundStyle(Theme.textPrimary)
+        }
+    }
+
+    private func externalRow(_ title: String, _ icon: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon).foregroundStyle(Theme.red).frame(width: 24)
             Text(title).foregroundStyle(Theme.textPrimary)
             Spacer()
             Image(systemName: "arrow.up.right").font(.footnote).foregroundStyle(Theme.textMuted)
         }
-    }
-}
-
-private extension View {
-    /// Oculta el fondo del List solo en iOS 16+ (en iOS 15 no hace nada).
-    @ViewBuilder func scrollContentBackgroundHidden() -> some View {
-        if #available(iOS 16.0, *) { self.scrollContentBackground(.hidden) } else { self }
     }
 }

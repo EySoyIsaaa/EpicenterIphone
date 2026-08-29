@@ -18,6 +18,7 @@ final class AudioService: ObservableObject {
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
     @Published var libraryCount = 0
+    @Published var currentTrackId: String?
 
     private let repository = NativeTrackRepository()
     private lazy var importer = NativeTrackImporter(repository: repository)
@@ -34,7 +35,18 @@ final class AudioService: ObservableObject {
     // MARK: Library
 
     func refresh() {
-        libraryCount = repository.loadTracks(limit: 2000).count
+        libraryCount = repository.loadTracks(limit: 5000).count
+    }
+
+    /// Full library as model objects, for the SwiftUI lists.
+    func loadLibrary() -> [NativeTrack] {
+        repository.loadTracks(limit: 5000)
+    }
+
+    /// Play a specific track from a list (sets the queue to that list starting at `index`).
+    func play(_ tracks: [NativeTrack], startAt index: Int) {
+        guard tracks.indices.contains(index) else { return }
+        _ = playback.setQueueAndPlay(trackIds: tracks.map { $0.id }, startIndex: index)
     }
 
     func importTracks() {
@@ -65,9 +77,11 @@ final class AudioService: ObservableObject {
         if let value = data["isPlaying"] as? Bool { isPlaying = value }
         if let value = data["currentTime"] as? Double { currentTime = value }
         if let value = data["duration"] as? Double { duration = value }
+        if let id = data["currentTrackId"] as? String { currentTrackId = id }
         if let track = data["currentTrack"] as? [String: Any] {
             title = track["title"] as? String ?? "—"
             artist = track["artist"] as? String ?? ""
+            if let id = track["id"] as? String { currentTrackId = id }
         }
     }
 }

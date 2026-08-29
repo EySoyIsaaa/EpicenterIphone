@@ -9,7 +9,7 @@ struct RootView: View {
             EngineTestScreen()   // Fase 0b: prueba del motor nativo (temporal, será el reproductor)
                 .tabItem { Label("Inicio", systemImage: "play.circle.fill") }
 
-            PlaceholderScreen(title: "Mi Música", systemImage: "music.note.list")
+            LibrarySongsScreen()
                 .tabItem { Label("Mi Música", systemImage: "music.note.list") }
 
             PlaceholderScreen(title: "Buscar", systemImage: "magnifyingglass")

@@ -3,6 +3,7 @@ import SwiftUI
 /// Buscar en la biblioteca por título, artista o álbum.
 struct SearchScreen: View {
     @ObservedObject private var audio = AudioService.shared
+    @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var all: [NativeTrack] = []
 
@@ -51,6 +52,11 @@ struct SearchScreen: View {
                 .padding(.top, 8)
             }
             .navigationTitle("Buscar")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cerrar") { dismiss() }.foregroundStyle(Theme.red)
+                }
+            }
         }
         .navigationViewStyle(.stack)
         .onAppear { all = audio.loadLibrary() }

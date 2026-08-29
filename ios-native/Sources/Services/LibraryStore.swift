@@ -10,9 +10,11 @@ final class LibraryStore: ObservableObject {
 
     @Published private(set) var favoriteIds: Set<String> = []
     @Published private(set) var playlists: [Playlist] = []
+    @Published private(set) var recentlyPlayedIds: [String] = []
 
     private let favKey = "epicenter.favorites.v1"
     private let playlistsKey = "epicenter.playlists.v1"
+    private let recentKey = "epicenter.recentlyPlayed.v1"
     private let defaults = UserDefaults.standard
 
     private init() {
@@ -23,6 +25,20 @@ final class LibraryStore: ObservableObject {
            let decoded = try? JSONDecoder().decode([Playlist].self, from: data) {
             playlists = decoded
         }
+        if let ids = defaults.array(forKey: recentKey) as? [String] {
+            recentlyPlayedIds = ids
+        }
+    }
+
+    /// Registra una canción como escuchada recientemente (la lleva al frente).
+    func recordPlayed(_ id: String) {
+        guard !id.isEmpty else { return }
+        var ids = recentlyPlayedIds
+        ids.removeAll { $0 == id }
+        ids.insert(id, at: 0)
+        if ids.count > 120 { ids = Array(ids.prefix(120)) }
+        recentlyPlayedIds = ids
+        defaults.set(ids, forKey: recentKey)
     }
 
     // MARK: Favoritos

@@ -22,8 +22,6 @@ struct DspScreen: View {
                             .font(.footnote)
                             .foregroundStyle(Theme.textMuted)
 
-                        autoEqCard
-
                         // Perilla principal (Intensidad).
                         KnobControl(label: "Intensidad", value: audio.intensity, range: 0...100, unit: "%",
                                     disabled: !audio.epicenterEnabled, size: 150, featured: true) { audio.setIntensity($0) }
@@ -48,11 +46,8 @@ struct DspScreen: View {
                                 .font(.caption).foregroundStyle(Theme.textMuted)
                         }
 
-                        HStack(spacing: 12) {
-                            NavigationLink(destination: EqScreen()) { card("Ecualizador", "slider.horizontal.3") }
-                            NavigationLink(destination: EffectsScreen()) { card("Efectos", "waveform.path.ecg") }
-                        }
-                        .padding(.top, 4)
+                        NavigationLink(destination: EqScreen()) { card("Ecualizador", "slider.horizontal.3") }
+                            .padding(.top, 4)
                     }
                     .padding()
                 }
@@ -66,23 +61,6 @@ struct DspScreen: View {
         audio.headphonesMode
             ? "Estás usando el tuning perfecto para audífonos y bocinas portátiles: graves profundos y limpios que sí se escuchan en drivers pequeños."
             : "Estás usando el tuning perfecto para equipos de car audio: máxima presión de subgraves, pensado para sistemas con subwoofer."
-    }
-
-    private var autoEqCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle(isOn: Binding(get: { audio.autoEqEnabled }, set: { audio.setAutoEqEnabled($0) })) {
-                HStack(spacing: 8) {
-                    Image(systemName: "wand.and.stars").foregroundStyle(Theme.red)
-                    Text("Ajuste automático").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.textPrimary)
-                }
-            }
-            .tint(Theme.red)
-            Text("Analiza el audio en tu dispositivo y aplica un ajuste automático para mantener un sonido potente, claro y estable.")
-                .font(.caption).foregroundStyle(Theme.textMuted)
-        }
-        .padding()
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.red.opacity(0.35), lineWidth: 1))
     }
 
     private var modeSwitch: some View {

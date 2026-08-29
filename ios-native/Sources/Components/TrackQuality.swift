@@ -1,0 +1,86 @@
+import SwiftUI
+import UIKit
+
+/// Info de calidad derivada de la pista (bit depth, kHz, kbps, Hi-Res).
+extension NativeTrack {
+    var effectiveBitDepth: Int? { originalBitDepth ?? bitDepth }
+    var effectiveSampleRate: Int? { originalSampleRate ?? sampleRate }
+    var effectiveBitrate: Int? { originalBitrate ?? bitrate }
+
+    var isHiRes: Bool {
+        if qualityClass == "hi-res" || qualityClass == "studio" { return true }
+        if let bd = effectiveBitDepth, bd >= 24 { return true }
+        if let sr = effectiveSampleRate, sr > 48000 { return true }
+        return false
+    }
+
+    /// Chips como en la web: "24 BIT", "44.1 kHz", "320 kbps".
+    var qualityChips: [String] {
+        var chips: [String] = []
+        if let bd = effectiveBitDepth, bd > 0 { chips.append("\(bd) BIT") }
+        if let sr = effectiveSampleRate, sr > 0 {
+            let khz = (Double(sr) / 100).rounded() / 10   // 44100 -> 44.1
+            chips.append(khz == khz.rounded() ? "\(Int(khz)) kHz" : "\(khz) kHz")
+        }
+        if let br = effectiveBitrate, br > 0 {
+            chips.append("\(Int((Double(br) / 1000).rounded())) kbps")
+        }
+        return chips
+    }
+}
+
+/// Fila de chips de calidad para el reproductor (badge Hi-Res + bit/kHz/kbps).
+struct QualityChips: View {
+    let track: NativeTrack
+    var body: some View {
+        HStack(spacing: 6) {
+            if track.isHiRes { HiResBadge() }
+            ForEach(track.qualityChips, id: \.self) { chip in
+                Text(chip)
+                    .font(.system(size: 10, weight: .bold))
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Theme.card, in: Capsule())
+                    .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        }
+    }
+}
+
+/// Insignia "Hi-Res AUDIO". Usa el logo original (asset "HiResLogo") si está disponible;
+/// si no, dibuja una insignia dorada nativa equivalente.
+struct HiResBadge: View {
+    var height: CGFloat = 18
+
+    var body: some View {
+        if let logo = UIImage(named: "HiResLogo") {
+            Image(uiImage: logo)
+                .resizable()
+                .scaledToFit()
+                .frame(height: height)
+                .padding(.horizontal, 5).padding(.vertical, 3)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 5))
+        } else {
+            nativeBadge
+        }
+    }
+
+    private var nativeBadge: some View {
+        HStack(spacing: 3) {
+            Text("Hi-Res")
+                .font(.system(size: 11, weight: .black, design: .serif))
+                .italic()
+            Text("AUDIO")
+                .font(.system(size: 7, weight: .black))
+                .padding(.top, 2)
+        }
+        .padding(.horizontal, 7).padding(.vertical, 3)
+        .background(
+            LinearGradient(colors: [Color(red: 0.87, green: 0.78, blue: 0.49),
+                                    Color(red: 0.71, green: 0.50, blue: 0.17)],
+                           startPoint: .top, endPoint: .bottom),
+            in: RoundedRectangle(cornerRadius: 5)
+        )
+        .foregroundStyle(Color(red: 0.15, green: 0.09, blue: 0.03))
+    }
+}

@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Fase 1: reproductor completo (pestaña Inicio). Carátula, seek, transporte, repeat, shuffle.
+/// Reproductor (pestaña Inicio): carátula con glow, info de calidad (bit/kHz/kbps + Hi-Res),
+/// barra de tiempo, transporte y controles (favorito, playlist, cola).
 struct PlayerScreen: View {
     @ObservedObject private var audio = AudioService.shared
     @ObservedObject private var favorites = LibraryStore.shared
@@ -8,6 +9,7 @@ struct PlayerScreen: View {
     @State private var seekValue: Double = 0
     @State private var showingQueue = false
     @State private var addTarget: TrackIdSelection?
+    @State private var trackInfo: NativeTrack?
 
     private var isCurrentFavorite: Bool {
         audio.currentTrackId.map { favorites.isFavorite($0) } ?? false
@@ -16,48 +18,86 @@ struct PlayerScreen: View {
     var body: some View {
         ZStack {
             Theme.background.ignoresSafeArea()
+            if audio.hasTrack {
+                RadialGradient(colors: [Theme.red.opacity(0.18), .clear],
+                               center: .top, startRadius: 0, endRadius: 420)
+                    .ignoresSafeArea()
+            }
+
             if !audio.hasTrack {
                 emptyState
             } else {
-                VStack(spacing: 22) {
-                    Spacer(minLength: 8)
-                    AlbumArtwork(path: audio.artworkPath, size: 300)
-                        .shadow(color: .black.opacity(0.5), radius: 20, y: 10)
-
-                    VStack(spacing: 6) {
-                        Text(audio.title).font(.title3.weight(.bold))
-                            .foregroundStyle(Theme.textPrimary).lineLimit(1)
-                        Text(audio.artist.isEmpty ? "Artista desconocido" : audio.artist)
-                            .foregroundStyle(Theme.textSecondary).lineLimit(1)
-                    }
-
-                    seekBar
-
-                    HStack(spacing: 34) {
-                        Button { audio.cycleRepeat() } label: {
-                            Image(systemName: audio.repeatMode == .one ? "repeat.1" : "repeat")
-                                .foregroundStyle(audio.repeatMode == .off ? Theme.textMuted : Theme.red)
-                        }
-                        Button { audio.previous() } label: { Image(systemName: "backward.fill").font(.title) }
-                        Button { audio.togglePlayPause() } label: {
-                            Image(systemName: audio.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                .font(.system(size: 66))
-                        }
-                        Button { audio.next() } label: { Image(systemName: "forward.fill").font(.title) }
-                        Button { audio.shuffleLibrary() } label: {
-                            Image(systemName: "shuffle").foregroundStyle(Theme.textMuted)
-                        }
-                    }
-                    .foregroundStyle(Theme.textPrimary)
-
-                    secondaryControls
-                    Spacer()
-                }
-                .padding(24)
+                content
             }
         }
         .sheet(isPresented: $showingQueue) { QueueScreen() }
         .sheet(item: $addTarget) { selection in AddToPlaylistSheet(trackIds: selection.ids) }
+        .onChange(of: audio.currentTrackId) { id in
+            trackInfo = id.flatMap { audio.track(id: $0) }
+            seeking = false
+            seekValue = audio.currentTime
+        }
+        .onAppear {
+            trackInfo = audio.currentTrackId.flatMap { audio.track(id: $0) }
+            seekValue = audio.currentTime
+        }
+    }
+
+    private var content: some View {
+        VStack(spacing: 20) {
+            Text("REPRODUCIENDO")
+                .font(.system(size: 10, weight: .black)).kerning(2)
+                .foregroundStyle(Theme.red)
+                .padding(.top, 6)
+
+            AlbumArtwork(path: audio.artworkPath, size: 300)
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.border, lineWidth: 1))
+                .shadow(color: .black.opacity(0.55), radius: 24, y: 14)
+
+            VStack(spacing: 8) {
+                Text(audio.title).font(.title3.weight(.bold))
+                    .foregroundStyle(Theme.textPrimary)
+                    .multilineTextAlignment(.center).lineLimit(2)
+                Text(audio.artist.isEmpty ? "Artista desconocido" : audio.artist)
+                    .foregroundStyle(Theme.textSecondary).lineLimit(1)
+                if let track = trackInfo {
+                    QualityChips(track: track).padding(.top, 2)
+                }
+            }
+
+            seekBar
+
+            transport
+
+            secondaryControls
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 12)
+    }
+
+    private var transport: some View {
+        HStack(spacing: 30) {
+            Button { audio.cycleRepeat() } label: {
+                Image(systemName: audio.repeatMode == .one ? "repeat.1" : "repeat")
+                    .font(.system(size: 18))
+                    .foregroundStyle(audio.repeatMode == .off ? Theme.textMuted : Theme.red)
+            }
+            Button { audio.previous() } label: {
+                Image(systemName: "backward.fill").font(.title2)
+            }
+            Button { audio.togglePlayPause() } label: {
+                Image(systemName: audio.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 72))
+            }
+            Button { audio.next() } label: {
+                Image(systemName: "forward.fill").font(.title2)
+            }
+            Button { audio.shuffleLibrary() } label: {
+                Image(systemName: "shuffle").font(.system(size: 18)).foregroundStyle(Theme.textMuted)
+            }
+        }
+        .foregroundStyle(Theme.textPrimary)
     }
 
     private var secondaryControls: some View {
@@ -71,6 +111,8 @@ struct PlayerScreen: View {
                 Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
                     .font(.title3)
                     .foregroundStyle(isCurrentFavorite ? Theme.red : Theme.textMuted)
+                    .scaleEffect(isCurrentFavorite ? 1.12 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isCurrentFavorite)
             }
             Button {
                 if let id = audio.currentTrackId { addTarget = TrackIdSelection(ids: [id]) }
@@ -81,7 +123,6 @@ struct PlayerScreen: View {
                 Image(systemName: "list.bullet").font(.title3).foregroundStyle(Theme.textMuted)
             }
         }
-        .padding(.top, 4)
     }
 
     private var seekBar: some View {
@@ -107,23 +148,17 @@ struct PlayerScreen: View {
             .font(.caption.monospacedDigit())
             .foregroundStyle(Theme.textMuted)
         }
-        // El tiempo avanza solo cuando NO estás arrastrando; al soltar, currentTime
-        // retoma y `seekValue` vuelve a seguirlo (arregla el congelamiento tras seek).
+        // El tiempo avanza solo cuando NO estás arrastrando (arregla el congelamiento tras seek).
         .onChange(of: audio.currentTime) { newValue in
             if !seeking { seekValue = newValue }
         }
-        .onChange(of: audio.currentTrackId) { _ in
-            seeking = false
-            seekValue = audio.currentTime
-        }
-        .onAppear { seekValue = audio.currentTime }
     }
 
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "play.circle").font(.system(size: 54)).foregroundStyle(Theme.textMuted)
             Text("Nada sonando").font(.headline).foregroundStyle(Theme.textPrimary)
-            Text("Elige una canción en Mi Música").font(.footnote).foregroundStyle(Theme.textSecondary)
+            Text("Elige una canción en Música").font(.footnote).foregroundStyle(Theme.textSecondary)
         }
     }
 

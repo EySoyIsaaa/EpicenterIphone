@@ -36,6 +36,7 @@ struct SongCollection: View {
     let title: String
     let tracks: [NativeTrack]
     var showsSort: Bool = false
+    var showsHiResBadge: Bool = false
 
     @State private var sort: SortMode = .added
 
@@ -59,6 +60,15 @@ struct SongCollection: View {
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(spacing: 0) {
+                if showsHiResBadge {
+                    HStack(spacing: 10) {
+                        HiResBadge(height: 22)
+                        Text("Reproducción a máxima resolución sin recompresión.")
+                            .font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal).padding(.top, 10).padding(.bottom, 2)
+                }
                 if !tracks.isEmpty {
                     PlayShuffleBar(tracks: sortedTracks)
                     if showsSort {

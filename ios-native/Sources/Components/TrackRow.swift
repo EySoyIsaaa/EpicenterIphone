@@ -9,11 +9,13 @@ struct TrackRow: View {
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 8).fill(Theme.card)
-                    .frame(width: 46, height: 46)
-                Image(systemName: isCurrent ? "waveform" : "music.note")
-                    .foregroundStyle(isCurrent ? Theme.red : Theme.textMuted)
+                AlbumArtwork(path: track.albumArtUri, size: 46)
+                if isCurrent {
+                    RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.45))
+                    Image(systemName: "waveform").foregroundStyle(Theme.red)
+                }
             }
+            .frame(width: 46, height: 46)
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title)
                     .font(.system(size: 15, weight: .medium))

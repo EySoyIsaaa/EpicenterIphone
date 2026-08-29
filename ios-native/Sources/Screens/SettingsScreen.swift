@@ -2,9 +2,8 @@ import SwiftUI
 
 /// Ajustes: guía de uso, enlaces legales externos (privacidad/términos) y "Acerca de".
 struct SettingsScreen: View {
-    // TODO: reemplazar por las URLs reales de tu sitio.
-    private let privacyURL = URL(string: "https://epicenterdsp.app/privacidad")!
-    private let termsURL = URL(string: "https://epicenterdsp.app/terminos")!
+    private let privacyURL = URL(string: "https://epicenterdsp.com/privacy/")!
+    private let termsURL = URL(string: "https://epicenterdsp.com/terms/")!
 
     private let features = [
         "Ecualizador de 31 bandas",

@@ -258,7 +258,13 @@ final class AudioService: ObservableObject {
         if autoEqEnabled { _ = playback.setAutoEqEnabled(true) }
     }
 
+    /// Canciones escuchadas recientemente (resueltas a modelos, en orden de recencia).
+    func recentlyPlayedTracks() -> [NativeTrack] {
+        LibraryStore.shared.recentlyPlayedIds.compactMap { repository.findTrack(id: $0) }
+    }
+
     private func apply(event: String, data: [String: Any]) {
+        let previousTrackId = currentTrackId
         if let value = data["isPlaying"] as? Bool { isPlaying = value }
         if let value = data["currentTime"] as? Double { currentTime = value }
         if let value = data["duration"] as? Double { duration = value }
@@ -272,6 +278,9 @@ final class AudioService: ObservableObject {
         if let queue = data["queue"] as? [String: Any] {
             if let ids = queue["trackIds"] as? [String] { queueTrackIds = ids }
             if let idx = queue["currentIndex"] as? Int { queueIndex = idx }
+        }
+        if let id = currentTrackId, id != previousTrackId {
+            LibraryStore.shared.recordPlayed(id)
         }
         updateLikeCommandState()
     }

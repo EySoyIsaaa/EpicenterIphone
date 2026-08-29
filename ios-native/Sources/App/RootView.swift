@@ -1,12 +1,14 @@
 import SwiftUI
 
 /// Shell de 5 pestañas + mini-reproductor.
-/// Inicio · Mi Música · Buscar · DSP · Ajustes.
+/// Inicio · Música · Epicenter · Efectos · Ajustes. (Buscar vive dentro de Música; EQ dentro de Epicenter.)
 struct RootView: View {
     @ObservedObject private var audio = AudioService.shared
     @State private var selection: Tab = .inicio
 
-    enum Tab { case inicio, musica, buscar, dsp, ajustes }
+    enum Tab { case inicio, musica, epicenter, efectos, ajustes }
+
+    private var showMini: Bool { audio.hasTrack && selection != .inicio }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -17,15 +19,15 @@ struct RootView: View {
 
                 LibraryScreen()
                     .tag(Tab.musica)
-                    .tabItem { Label("Mi Música", systemImage: "music.note.list") }
-
-                SearchScreen()
-                    .tag(Tab.buscar)
-                    .tabItem { Label("Buscar", systemImage: "magnifyingglass") }
+                    .tabItem { Label("Música", systemImage: "music.note.list") }
 
                 DspScreen()
-                    .tag(Tab.dsp)
-                    .tabItem { Label("DSP", systemImage: "waveform") }
+                    .tag(Tab.epicenter)
+                    .tabItem { Label("Epicenter", systemImage: "waveform") }
+
+                EffectsScreen()
+                    .tag(Tab.efectos)
+                    .tabItem { Label("Efectos", systemImage: "wand.and.rays") }
 
                 SettingsScreen()
                     .tag(Tab.ajustes)
@@ -33,12 +35,14 @@ struct RootView: View {
             }
             .tint(Theme.red)
 
-            // Mini-reproductor sobre la barra de pestañas (excepto en Inicio, que ya es el reproductor).
-            if audio.hasTrack && selection != .inicio {
+            // Mini-reproductor sobre la barra de pestañas (excepto en Inicio).
+            if showMini {
                 MiniPlayer { selection = .inicio }
                     .padding(.bottom, 52)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .animation(.spring(response: 0.34, dampingFraction: 0.86), value: showMini)
     }
 }
 

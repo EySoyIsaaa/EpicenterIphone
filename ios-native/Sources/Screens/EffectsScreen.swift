@@ -5,28 +5,33 @@ struct EffectsScreen: View {
     @ObservedObject private var audio = AudioService.shared
 
     var body: some View {
-        ZStack {
-            Theme.background.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 18) {
-                    effectCard(
-                        title: "Reverb",
-                        enabled: Binding(get: { audio.reverbEnabled }, set: { audio.setReverbEnabled($0) }),
-                        amount: audio.reverbAmount,
-                        onAmount: { audio.setReverbAmount($0) }
-                    )
-                    effectCard(
-                        title: "Concert Hall",
-                        enabled: Binding(get: { audio.concertHallEnabled }, set: { audio.setConcertHallEnabled($0) }),
-                        amount: audio.concertHallAmount,
-                        onAmount: { audio.setConcertHallAmount($0) }
-                    )
+        NavigationView {
+            ZStack {
+                Theme.background.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 18) {
+                        Text("Reverb y sala de concierto en paralelo. La señal seca se conserva a ganancia unitaria.")
+                            .font(.footnote).foregroundStyle(Theme.textMuted)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        effectCard(
+                            title: "Reverb",
+                            enabled: Binding(get: { audio.reverbEnabled }, set: { audio.setReverbEnabled($0) }),
+                            amount: audio.reverbAmount,
+                            onAmount: { audio.setReverbAmount($0) }
+                        )
+                        effectCard(
+                            title: "Concert Hall",
+                            enabled: Binding(get: { audio.concertHallEnabled }, set: { audio.setConcertHallEnabled($0) }),
+                            amount: audio.concertHallAmount,
+                            onAmount: { audio.setConcertHallAmount($0) }
+                        )
+                    }
+                    .padding()
                 }
-                .padding()
             }
+            .navigationTitle("Efectos")
         }
-        .navigationTitle("Efectos")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationViewStyle(.stack)
     }
 
     private func effectCard(title: String, enabled: Binding<Bool>, amount: Double, onAmount: @escaping (Double) -> Void) -> some View {

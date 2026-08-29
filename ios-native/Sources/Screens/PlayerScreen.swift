@@ -3,8 +3,15 @@ import SwiftUI
 /// Fase 1: reproductor completo (pestaña Inicio). Carátula, seek, transporte, repeat, shuffle.
 struct PlayerScreen: View {
     @ObservedObject private var audio = AudioService.shared
+    @ObservedObject private var favorites = LibraryStore.shared
     @State private var seeking = false
     @State private var seekValue: Double = 0
+    @State private var showingQueue = false
+    @State private var addTarget: TrackIdSelection?
+
+    private var isCurrentFavorite: Bool {
+        audio.currentTrackId.map { favorites.isFavorite($0) } ?? false
+    }
 
     var body: some View {
         ZStack {
@@ -42,11 +49,36 @@ struct PlayerScreen: View {
                         }
                     }
                     .foregroundStyle(Theme.textPrimary)
+
+                    secondaryControls
                     Spacer()
                 }
                 .padding(24)
             }
         }
+        .sheet(isPresented: $showingQueue) { QueueScreen() }
+        .sheet(item: $addTarget) { selection in AddToPlaylistSheet(trackIds: selection.ids) }
+    }
+
+    private var secondaryControls: some View {
+        HStack(spacing: 44) {
+            Button {
+                if let id = audio.currentTrackId { favorites.toggleFavorite(id) }
+            } label: {
+                Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
+                    .font(.title3)
+                    .foregroundStyle(isCurrentFavorite ? Theme.red : Theme.textMuted)
+            }
+            Button {
+                if let id = audio.currentTrackId { addTarget = TrackIdSelection(ids: [id]) }
+            } label: {
+                Image(systemName: "plus.circle").font(.title3).foregroundStyle(Theme.textMuted)
+            }
+            Button { showingQueue = true } label: {
+                Image(systemName: "list.bullet").font(.title3).foregroundStyle(Theme.textMuted)
+            }
+        }
+        .padding(.top, 4)
     }
 
     private var seekBar: some View {

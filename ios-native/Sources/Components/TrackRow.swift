@@ -4,6 +4,7 @@ import SwiftUI
 struct TrackRow: View {
     let track: NativeTrack
     var isCurrent: Bool = false
+    @ObservedObject private var favorites = LibraryStore.shared
 
     var body: some View {
         HStack(spacing: 12) {
@@ -24,6 +25,11 @@ struct TrackRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
+            if favorites.isFavorite(track.id) {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.red)
+            }
             if let tag = qualityTag {
                 Text(tag.label)
                     .font(.system(size: 10, weight: .bold))

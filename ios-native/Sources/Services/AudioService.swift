@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import SwiftUI   // move(fromOffsets:toOffset:) lo provee SwiftUI
 import UIKit
 
 /// Native facade that the SwiftUI layer talks to — the replacement for the Capacitor plugin.
@@ -20,6 +21,10 @@ final class AudioService: ObservableObject {
     @Published var currentTrackId: String?
     @Published var repeatMode: RepeatMode = .off
     @Published var libraryCount = 0
+
+    // Cola (para la pantalla "Cola")
+    @Published var queueTrackIds: [String] = []
+    @Published var queueIndex: Int = 0
 
     // Epicenter / DSP
     @Published var epicenterEnabled = false
@@ -52,6 +57,7 @@ final class AudioService: ObservableObject {
         }
         refresh()
         loadDspState()
+        refreshQueue()
     }
 
     // MARK: Library
@@ -77,6 +83,13 @@ final class AudioService: ObservableObject {
         guard !tracks.isEmpty else { return }
         _ = playback.setQueueAndPlay(trackIds: tracks.map { $0.id }, startIndex: 0)
     }
+    /// Reproduce una colección concreta en orden aleatorio (artista, álbum, favoritos, playlist…).
+    func playShuffled(_ tracks: [NativeTrack]) {
+        let shuffled = tracks.shuffled()
+        guard !shuffled.isEmpty else { return }
+        _ = playback.setQueueAndPlay(trackIds: shuffled.map { $0.id }, startIndex: 0)
+    }
+    func track(id: String) -> NativeTrack? { repository.findTrack(id: id) }
     func togglePlayPause() { _ = isPlaying ? playback.pause() : playback.play() }
     func next() { _ = playback.next() }
     func previous() { _ = playback.previous() }
@@ -84,6 +97,77 @@ final class AudioService: ObservableObject {
     func cycleRepeat() {
         repeatMode = repeatMode == .off ? .all : (repeatMode == .all ? .one : .off)
         if let mode = NativeRepeatMode(rawValue: repeatMode.rawValue) { _ = playback.setRepeatMode(mode) }
+    }
+
+    // MARK: Cola
+
+    /// Canciones de la cola actual, resueltas a modelos (puede omitir ids no encontrados).
+    func queueTracks() -> [NativeTrack] { queueTrackIds.compactMap { repository.findTrack(id: $0) } }
+
+    /// Sincroniza `queueTrackIds`/`queueIndex` desde el estado real del motor.
+    func refreshQueue() {
+        let state = playback.getPlaybackState()
+        guard let queue = state["queue"] as? [String: Any] else { return }
+        queueTrackIds = (queue["trackIds"] as? [String]) ?? []
+        queueIndex = (queue["currentIndex"] as? Int) ?? 0
+    }
+
+    /// Salta a una canción que ya está en la cola sin reconstruirla.
+    func playQueueTrack(id: String) { _ = playback.play(trackId: id) }
+
+    func moveQueue(from source: IndexSet, to destination: Int) {
+        var ids = queueTrackIds
+        ids.move(fromOffsets: source, toOffset: destination)
+        setQueueOrder(ids)
+    }
+
+    func removeQueue(at offsets: IndexSet) {
+        let ids = offsets.compactMap { queueTrackIds.indices.contains($0) ? queueTrackIds[$0] : nil }
+        removeFromQueue(ids: ids)
+    }
+
+    /// Agrega al final de la cola (o inicia reproducción si la cola está vacía).
+    func addToQueue(_ ids: [String]) {
+        let live = liveQueue()
+        guard !live.ids.isEmpty else { play(ids.compactMap { track(id: $0) }, startAt: 0); return }
+        let existing = Set(live.ids)
+        setQueueOrder(live.ids + ids.filter { !existing.contains($0) })
+    }
+
+    /// Inserta justo después de la canción actual.
+    func playNext(_ ids: [String]) {
+        let live = liveQueue()
+        guard !live.ids.isEmpty else { play(ids.compactMap { track(id: $0) }, startAt: 0); return }
+        var newIds = live.ids
+        let existing = Set(newIds)
+        let toInsert = ids.filter { !existing.contains($0) }
+        newIds.insert(contentsOf: toInsert, at: min(live.index + 1, newIds.count))
+        setQueueOrder(newIds)
+    }
+
+    /// Quita canciones de la cola (nunca la que suena ahora).
+    func removeFromQueue(ids: [String]) {
+        let live = liveQueue()
+        let currentId = live.ids.indices.contains(live.index) ? live.ids[live.index] : nil
+        let removeSet = Set(ids).subtracting(currentId.map { [$0] } ?? [])
+        guard !removeSet.isEmpty else { return }
+        setQueueOrder(live.ids.filter { !removeSet.contains($0) })
+    }
+
+    /// Reinstala la cola conservando la pista que suena (sin reiniciar el audio).
+    private func setQueueOrder(_ newIds: [String]) {
+        let live = liveQueue()
+        let currentId = live.ids.indices.contains(live.index) ? live.ids[live.index] : nil
+        let start = currentId.flatMap { newIds.firstIndex(of: $0) } ?? 0
+        _ = playback.setQueue(trackIds: newIds, startIndex: start)
+        refreshQueue()
+    }
+
+    /// Lee la cola viva del motor (fuente de verdad para las mutaciones).
+    private func liveQueue() -> (ids: [String], index: Int) {
+        let queue = playback.getPlaybackState()["queue"] as? [String: Any]
+        return ((queue?["trackIds"] as? [String]) ?? queueTrackIds,
+                (queue?["currentIndex"] as? Int) ?? queueIndex)
     }
 
     // MARK: Epicenter / DSP
@@ -148,6 +232,10 @@ final class AudioService: ObservableObject {
             artist = track["artist"] as? String ?? ""
             artworkPath = track["albumArtUri"] as? String
             if let id = track["id"] as? String { currentTrackId = id }
+        }
+        if let queue = data["queue"] as? [String: Any] {
+            if let ids = queue["trackIds"] as? [String] { queueTrackIds = ids }
+            if let idx = queue["currentIndex"] as? Int { queueIndex = idx }
         }
     }
 

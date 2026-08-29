@@ -24,16 +24,24 @@ struct DspScreen: View {
 
                         autoEqCard
 
-                        LabeledSlider(title: "Intensidad", value: audio.intensity, range: 0...100, unit: "%",
-                                      disabled: !audio.epicenterEnabled) { audio.setIntensity($0) }
-                        LabeledSlider(title: "Sweep", value: audio.sweepFreq, range: 27...63, unit: " Hz",
-                                      disabled: secondaryDisabled) { audio.setSweep($0) }
-                        LabeledSlider(title: "Width", value: audio.width, range: 0...100, unit: "%",
-                                      disabled: secondaryDisabled) { audio.setWidth($0) }
-                        LabeledSlider(title: "Balance", value: audio.balance, range: 0...100, unit: "%",
-                                      disabled: secondaryDisabled) { audio.setBalance($0) }
-                        LabeledSlider(title: "Volumen", value: audio.volume, range: 0...150, unit: "%",
-                                      disabled: !audio.epicenterEnabled) { audio.setVolume($0) }
+                        // Perilla principal (Intensidad).
+                        KnobControl(label: "Intensidad", value: audio.intensity, range: 0...100, unit: "%",
+                                    disabled: !audio.epicenterEnabled, size: 150, featured: true) { audio.setIntensity($0) }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+
+                        // Perillas secundarias.
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 18) {
+                            KnobControl(label: "Sweep", value: audio.sweepFreq, range: 27...63, unit: "Hz",
+                                        disabled: secondaryDisabled) { audio.setSweep($0) }
+                            KnobControl(label: "Width", value: audio.width, range: 0...100, unit: "%",
+                                        disabled: secondaryDisabled) { audio.setWidth($0) }
+                            KnobControl(label: "Balance", value: audio.balance, range: 0...100, unit: "%",
+                                        disabled: secondaryDisabled) { audio.setBalance($0) }
+                            KnobControl(label: "Volumen", value: audio.volume, range: 0...150, unit: "%",
+                                        disabled: !audio.epicenterEnabled) { audio.setVolume($0) }
+                        }
+                        .padding(.top, 4)
 
                         if audio.headphonesMode {
                             Text("En modo Audífonos el motor se ajusta solo con Intensidad. Sweep, Width y Balance pertenecen al motor de Car Audio.")

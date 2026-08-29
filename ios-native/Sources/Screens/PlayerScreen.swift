@@ -63,7 +63,10 @@ struct PlayerScreen: View {
     private var secondaryControls: some View {
         HStack(spacing: 44) {
             Button {
-                if let id = audio.currentTrackId { favorites.toggleFavorite(id) }
+                if let id = audio.currentTrackId {
+                    favorites.toggleFavorite(id)
+                    audio.updateLikeCommandState()
+                }
             } label: {
                 Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
                     .font(.title3)
@@ -84,25 +87,36 @@ struct PlayerScreen: View {
     private var seekBar: some View {
         VStack(spacing: 4) {
             Slider(
-                value: Binding(
-                    get: { seeking ? seekValue : audio.currentTime },
-                    set: { seekValue = $0 }
-                ),
+                value: $seekValue,
                 in: 0...max(audio.duration, 1),
                 onEditingChanged: { editing in
-                    if editing { seeking = true; seekValue = audio.currentTime }
-                    else { audio.seek(to: seekValue); seeking = false }
+                    if editing {
+                        seeking = true
+                    } else {
+                        audio.seek(to: seekValue)
+                        seeking = false
+                    }
                 }
             )
             .tint(Theme.red)
             HStack {
-                Text(fmt(seeking ? seekValue : audio.currentTime))
+                Text(fmt(seekValue))
                 Spacer()
                 Text(fmt(audio.duration))
             }
             .font(.caption.monospacedDigit())
             .foregroundStyle(Theme.textMuted)
         }
+        // El tiempo avanza solo cuando NO estás arrastrando; al soltar, currentTime
+        // retoma y `seekValue` vuelve a seguirlo (arregla el congelamiento tras seek).
+        .onChange(of: audio.currentTime) { newValue in
+            if !seeking { seekValue = newValue }
+        }
+        .onChange(of: audio.currentTrackId) { _ in
+            seeking = false
+            seekValue = audio.currentTime
+        }
+        .onAppear { seekValue = audio.currentTime }
     }
 
     private var emptyState: some View {

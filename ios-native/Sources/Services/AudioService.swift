@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import MediaPlayer
 import SwiftUI   // move(fromOffsets:toOffset:) lo provee SwiftUI
 import UIKit
 
@@ -59,6 +60,32 @@ final class AudioService: ObservableObject {
         refresh()
         loadDspState()
         refreshQueue()
+        configureLikeCommand()
+    }
+
+    // MARK: Corazón "me gusta" en pantalla bloqueada / Control Center / CarPlay
+
+    /// Registra el comando de feedback "me gusta" del sistema. iOS lo muestra como corazón
+    /// donde soporte comandos de feedback (CarPlay/Apple Watch seguro; Lock Screen/Control
+    /// Center según versión). Se sincroniza con Favoritos.
+    private func configureLikeCommand() {
+        let like = MPRemoteCommandCenter.shared().likeCommand
+        like.isEnabled = true
+        like.localizedTitle = "Me gusta"
+        like.localizedShortTitle = "Me gusta"
+        like.addTarget { [weak self] _ in
+            guard let self = self, let id = self.currentTrackId else { return .noSuchContent }
+            LibraryStore.shared.toggleFavorite(id)
+            self.updateLikeCommandState()
+            return .success
+        }
+        updateLikeCommandState()
+    }
+
+    /// Refleja en el sistema si la canción actual es favorita (corazón lleno / vacío).
+    func updateLikeCommandState() {
+        let isFav = currentTrackId.map { LibraryStore.shared.isFavorite($0) } ?? false
+        MPRemoteCommandCenter.shared().likeCommand.isActive = isFav
     }
 
     // MARK: Library
@@ -246,6 +273,7 @@ final class AudioService: ObservableObject {
             if let ids = queue["trackIds"] as? [String] { queueTrackIds = ids }
             if let idx = queue["currentIndex"] as? Int { queueIndex = idx }
         }
+        updateLikeCommandState()
     }
 
     private func num(_ v: Any?, _ d: Double) -> Double {

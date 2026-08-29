@@ -30,13 +30,14 @@ struct EffectsScreen: View {
     }
 
     private func effectCard(title: String, enabled: Binding<Bool>, amount: Double, onAmount: @escaping (Double) -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(spacing: 14) {
             Toggle(isOn: enabled) {
                 Text(title).font(.headline).foregroundStyle(Theme.textPrimary)
             }
             .tint(Theme.red)
-            LabeledSlider(title: "Cantidad", value: amount, range: 0...100, unit: "%",
-                          disabled: !enabled.wrappedValue, onChange: onAmount)
+            KnobControl(label: "Cantidad", value: amount, range: 0...100, unit: "%",
+                        disabled: !enabled.wrappedValue, size: 112, featured: true, onChange: onAmount)
+                .frame(maxWidth: .infinity)
         }
         .padding()
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))

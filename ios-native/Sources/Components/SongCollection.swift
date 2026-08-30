@@ -65,7 +65,7 @@ struct SongCollection: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            BrandBackground()
             VStack(spacing: 0) {
                 if showsHiResBadge {
                     HStack(spacing: 10) {

@@ -15,7 +15,7 @@ struct EqScreen: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                BrandBackground()
                 VStack(spacing: 14) {
                     Toggle(isOn: Binding(get: { audio.eqEnabled }, set: { audio.setEqEnabled($0) })) {
                         Text(L("Ecualizador activo", "Equalizer on")).font(.subheadline).foregroundStyle(Theme.textPrimary)

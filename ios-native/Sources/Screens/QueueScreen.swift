@@ -11,7 +11,7 @@ struct QueueScreen: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                BrandBackground()
                 if audio.queueTrackIds.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "list.bullet").font(.system(size: 44)).foregroundStyle(Theme.textMuted)

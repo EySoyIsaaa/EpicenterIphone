@@ -22,6 +22,7 @@ final class AudioService: ObservableObject {
     @Published var currentTrackId: String?
     @Published var repeatMode: RepeatMode = .off
     @Published var libraryCount = 0
+    @Published var libraryRevision = 0   // sube al importar; las vistas recargan al cambiar
 
     // Cola (para la pantalla "Cola")
     @Published var queueTrackIds: [String] = []
@@ -95,7 +96,10 @@ final class AudioService: ObservableObject {
 
     // MARK: Library
 
-    func refresh() { libraryCount = repository.loadTracks(limit: 5000).count }
+    func refresh() {
+        libraryCount = repository.loadTracks(limit: 5000).count
+        libraryRevision += 1
+    }
     func loadLibrary() -> [NativeTrack] { repository.loadTracks(limit: 5000) }
 
     func importTracks() {

@@ -40,7 +40,7 @@ struct HowToUseScreen: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            BrandBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(intro)

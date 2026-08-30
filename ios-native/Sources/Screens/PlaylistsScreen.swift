@@ -10,7 +10,7 @@ struct PlaylistsScreen: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            BrandBackground()
             if store.playlists.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "music.note.list").font(.system(size: 44)).foregroundStyle(Theme.textMuted)
@@ -85,7 +85,7 @@ struct PlaylistDetailScreen: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            BrandBackground()
             VStack(spacing: 0) {
                 if !tracks.isEmpty {
                     PlayShuffleBar(tracks: tracks)

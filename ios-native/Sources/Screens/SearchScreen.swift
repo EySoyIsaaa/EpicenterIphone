@@ -21,7 +21,7 @@ struct SearchScreen: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                BrandBackground()
                 VStack(spacing: 12) {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted)

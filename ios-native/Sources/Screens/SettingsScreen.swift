@@ -27,7 +27,7 @@ struct SettingsScreen: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                BrandBackground()
                 List {
                     Section {
                         Picker(L("Tema", "Theme"), selection: $theme.mode) {

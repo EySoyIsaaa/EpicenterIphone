@@ -26,7 +26,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            BrandBackground()
             VStack(spacing: 0) {
                 HStack {
                     Spacer()

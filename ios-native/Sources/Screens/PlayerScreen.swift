@@ -17,19 +17,17 @@ struct PlayerScreen: View {
         audio.currentTrackId.map { favorites.isFavorite($0) } ?? false
     }
 
+    private var isHiRes: Bool { trackInfo?.isHiRes ?? false }
+
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
-            if audio.hasTrack {
-                RadialGradient(colors: [Theme.red.opacity(0.18), .clear],
-                               center: .top, startRadius: 0, endRadius: 420)
-                    .ignoresSafeArea()
-            }
+            BrandBackground()
 
             if !audio.hasTrack {
                 emptyState
             } else {
-                content
+                // En Hi-Res el reproductor lleva la insignia grande; se reduce ~4% para que quepa.
+                content.scaleEffect(isHiRes ? 0.96 : 1.0, anchor: .center)
             }
         }
         .sheet(isPresented: $showingQueue) { QueueScreen() }

@@ -35,7 +35,7 @@ struct LibraryScreen: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                BrandBackground()
                 if tracks.isEmpty {
                     emptyState
                 } else {
@@ -104,6 +104,7 @@ struct LibraryScreen: View {
         .sheet(isPresented: $showSearch) { SearchScreen() }
         .sheet(isPresented: $showSettings) { SettingsScreen() }
         .onAppear { tracks = audio.loadLibrary() }
+        .onChange(of: audio.libraryRevision) { _ in tracks = audio.loadLibrary() }
     }
 
     // MARK: Secciones
@@ -264,7 +265,7 @@ private struct GroupCollection: View {
 
     var body: some View {
         ZStack {
-            Theme.background.ignoresSafeArea()
+            BrandBackground()
             if groups.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: icon).font(.system(size: 34)).foregroundStyle(Theme.textMuted)

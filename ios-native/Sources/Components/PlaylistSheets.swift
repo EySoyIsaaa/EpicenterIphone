@@ -20,7 +20,7 @@ struct NameInputSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                BrandBackground()
                 VStack(spacing: 16) {
                     TextField(L("Nombre", "Name"), text: $text)
                         .focused($focused)
@@ -68,7 +68,7 @@ struct AddToPlaylistSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                BrandBackground()
                 List {
                     Button { creating = true } label: {
                         HStack(spacing: 12) {
@@ -145,7 +145,7 @@ struct AddSongsSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Theme.background.ignoresSafeArea()
+                BrandBackground()
                 VStack(spacing: 0) {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted)

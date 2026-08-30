@@ -42,7 +42,7 @@ struct DspScreen: View {
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("EPICENTER DSP 7.0")
+                Text("EPICENTER DSP 4.0")
                     .font(.system(size: 10, weight: .black)).kerning(1.6)
                     .foregroundStyle(Theme.red)
                 Text(L("Reconstructor de bajos", "Bass reconstructor"))

@@ -35,6 +35,7 @@ targets:
       - sdk: Accelerate.framework
       - sdk: CarPlay.framework
       - sdk: UniformTypeIdentifiers.framework
+      - sdk: StoreKit.framework
       - sdk: libsqlite3.tbd
     settings:
       base:

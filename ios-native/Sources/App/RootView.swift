@@ -4,7 +4,9 @@ import SwiftUI
 /// Inicio · Música · Epicenter · EQ · Efectos. (Buscar y Ajustes viven dentro de Música.)
 struct RootView: View {
     @ObservedObject private var audio = AudioService.shared
+    @ObservedObject private var theme = ThemeStore.shared
     @State private var selection: Tab = .inicio
+    @AppStorage("hasOnboarded") private var hasOnboarded = false
 
     enum Tab { case inicio, musica, epicenter, eq, efectos }
 
@@ -43,6 +45,11 @@ struct RootView: View {
             }
         }
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: showMini)
+        .fullScreenCover(isPresented: Binding(get: { !hasOnboarded }, set: { hasOnboarded = !$0 })) {
+            OnboardingView { hasOnboarded = true }
+        }
+        .onAppear { if hasOnboarded { ReviewManager.registerUseAndMaybeAsk() } }
+        .preferredColorScheme(theme.colorScheme)
     }
 }
 

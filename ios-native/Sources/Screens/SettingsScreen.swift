@@ -3,6 +3,7 @@ import SwiftUI
 /// Ajustes: guía de uso, enlaces legales externos (privacidad/términos) y "Acerca de".
 struct SettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var theme = ThemeStore.shared
     private let privacyURL = URL(string: "https://epicenterdsp.com/privacy/")!
     private let termsURL = URL(string: "https://epicenterdsp.com/terms/")!
 
@@ -25,8 +26,21 @@ struct SettingsScreen: View {
                 Theme.background.ignoresSafeArea()
                 List {
                     Section {
+                        Picker("Tema", selection: $theme.mode) {
+                            ForEach(ThemeStore.Mode.allCases) { Text($0.label).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                    } header: {
+                        Text("Apariencia").foregroundStyle(Theme.textMuted)
+                    }
+                    .listRowBackground(Theme.card)
+
+                    Section {
                         NavigationLink(destination: HowToUseScreen()) {
                             rowContent("Cómo usar", "book.fill")
+                        }
+                        Button { ReviewManager.requestReview() } label: {
+                            rowContent("Calificar la app", "star.fill")
                         }
                     } header: {
                         Text("Guía").foregroundStyle(Theme.textMuted)

@@ -10,7 +10,6 @@ struct EpicenterApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .preferredColorScheme(.dark)   // the app is dark-first (see Ajustes later)
         }
     }
 }

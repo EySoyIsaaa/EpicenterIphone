@@ -51,7 +51,8 @@ struct DspScreen: View {
                         autoEpicenterCard
                             .padding(.top, 4)
                     }
-                    .padding()
+                    .padding([.horizontal, .top])
+                    .padding(.bottom, 96)   // espacio para la barra + mini-reproductor
                 }
             }
             .navigationTitle("Epicenter DSP")

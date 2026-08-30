@@ -7,6 +7,7 @@ struct RootView: View {
     @ObservedObject private var theme = ThemeStore.shared
     @ObservedObject private var loc = LocalizationStore.shared
     @State private var selection: Tab = .inicio
+    @State private var showSplash = true
     @AppStorage("hasOnboarded") private var hasOnboarded = false
 
     enum Tab { case inicio, musica, epicenter, eq, efectos }
@@ -46,7 +47,14 @@ struct RootView: View {
             }
         }
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: showMini)
-        .fullScreenCover(isPresented: Binding(get: { !hasOnboarded }, set: { hasOnboarded = !$0 })) {
+        .overlay {
+            if showSplash {
+                SplashView { showSplash = false }
+                    .transition(.opacity)
+                    .zIndex(10)
+            }
+        }
+        .fullScreenCover(isPresented: Binding(get: { !hasOnboarded && !showSplash }, set: { hasOnboarded = !$0 })) {
             OnboardingView { hasOnboarded = true }
         }
         .onAppear { if hasOnboarded { ReviewManager.registerUseAndMaybeAsk() } }

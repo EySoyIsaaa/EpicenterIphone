@@ -29,7 +29,7 @@ extension NativeTrack {
     }
 }
 
-/// Fila de chips de calidad para el reproductor (badge Hi-Res + bit/kHz/kbps).
+/// Info de calidad para el reproductor: insignia Hi-Res grande (arriba) + chips bit/kHz/kbps.
 /// Cuando la pista es Hi-Res, los chips llevan contorno y texto dorados.
 struct QualityChips: View {
     let track: NativeTrack
@@ -37,24 +37,26 @@ struct QualityChips: View {
 
     var body: some View {
         let hi = track.isHiRes
-        return HStack(spacing: 7) {
-            if hi { HiResBadge() }
-            ForEach(track.qualityChips, id: \.self) { chip in
-                Text(chip)
-                    .font(.system(size: 11, weight: .bold))
-                    .padding(.horizontal, 9).padding(.vertical, 5)
-                    .background(Theme.card, in: Capsule())
-                    .overlay(Capsule().stroke(hi ? QualityChips.gold : Theme.border, lineWidth: 1))
-                    .foregroundStyle(hi ? QualityChips.gold : Theme.textSecondary)
+        return VStack(spacing: 10) {
+            if hi { HiResBadge(height: 42) }
+            HStack(spacing: 7) {
+                ForEach(track.qualityChips, id: \.self) { chip in
+                    Text(chip)
+                        .font(.system(size: 11, weight: .bold))
+                        .padding(.horizontal, 9).padding(.vertical, 5)
+                        .background(Theme.card, in: Capsule())
+                        .overlay(Capsule().stroke(hi ? QualityChips.gold : Theme.border, lineWidth: 1))
+                        .foregroundStyle(hi ? QualityChips.gold : Theme.textSecondary)
+                }
             }
         }
     }
 }
 
-/// Insignia "Hi-Res AUDIO". Usa el logo original (asset "HiResLogo") si está disponible;
-/// si no, dibuja una insignia dorada nativa equivalente.
+/// Insignia oficial "Hi-Res AUDIO" (asset "HiResLogo") sobre fondo transparente.
+/// Si el asset falta, dibuja una insignia dorada nativa equivalente.
 struct HiResBadge: View {
-    var height: CGFloat = 18
+    var height: CGFloat = 22
 
     var body: some View {
         if let logo = UIImage(named: "HiResLogo") {
@@ -62,8 +64,6 @@ struct HiResBadge: View {
                 .resizable()
                 .scaledToFit()
                 .frame(height: height)
-                .padding(.horizontal, 5).padding(.vertical, 3)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 5))
         } else {
             nativeBadge
         }

@@ -66,9 +66,11 @@ struct EqScreen: View {
 
                     Button(L("Restablecer", "Reset")) { audio.resetEq() }
                         .foregroundStyle(Theme.textSecondary)
-                        .padding(.bottom, 6)
+
+                    Spacer(minLength: 0)
                 }
                 .padding(.top, 8)
+                .padding(.bottom, 96)   // deja libre la barra + mini-reproductor
             }
             .navigationTitle(L("Ecualizador", "Equalizer"))
         }
@@ -150,7 +152,7 @@ struct VerticalFader: View {
     var enabled: Bool
     let onChange: (Double) -> Void
 
-    private let height: CGFloat = 210
+    private let height: CGFloat = 180
 
     private var normalized: CGFloat {
         let span = range.upperBound - range.lowerBound
@@ -178,10 +180,14 @@ struct VerticalFader: View {
             }
             .frame(width: 36, height: height)
             .contentShape(Rectangle())
-            .gesture(
+            // simultaneousGesture deja que el ScrollView horizontal siga desplazándose;
+            // solo ajustamos el fader cuando el arrastre es vertical (o un toque).
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { g in
                         guard enabled else { return }
+                        // Si el gesto es claramente horizontal, es scroll: no cambiar el valor.
+                        if abs(g.translation.width) > abs(g.translation.height), abs(g.translation.width) > 10 { return }
                         let frac = 1 - min(max(g.location.y / height, 0), 1)
                         let span = range.upperBound - range.lowerBound
                         let raw = range.lowerBound + Double(frac) * span

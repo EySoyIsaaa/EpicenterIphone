@@ -32,7 +32,8 @@ struct EffectsScreen: View {
                             onAmount: { audio.setConcertHallAmount($0) }
                         )
                     }
-                    .padding()
+                    .padding([.horizontal, .top])
+                    .padding(.bottom, 96)
                 }
             }
             .navigationTitle(L("Efectos", "Effects"))

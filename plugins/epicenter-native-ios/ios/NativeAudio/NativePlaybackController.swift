@@ -24,6 +24,8 @@ final class NativePlaybackController {
     private var activeTransitionStartedAt: Date?
     private let analysisQueue = DispatchQueue(label: "com.epicenter.hifi.auto-eq", qos: .utility)
     private var autoEqEnabled = false
+    private var crossfadeSeconds: Double = 0
+    private var didFadeOutForCurrentTrack = false
 
     var eventEmitter: ((String, [String: Any]) -> Void)?
 
@@ -334,6 +336,16 @@ final class NativePlaybackController {
         }
     }
 
+    /// Crossfade: fundido del volumen maestro entre canciones. 0 = desactivado (sin tocar nada).
+    func setCrossfade(seconds: Double) -> [String: Any] {
+        queue.sync {
+            crossfadeSeconds = max(0, seconds)
+            if crossfadeSeconds <= 0 { engine.resetMasterVolume() }
+            print("[Crossfade] seconds=\(crossfadeSeconds)")
+            return ["status": "ok", "crossfadeSeconds": crossfadeSeconds]
+        }
+    }
+
     func setReverbEnabled(_ enabled: Bool) -> [String: Any] {
         queue.sync {
             let response = engine.setReverbEnabled(enabled)
@@ -542,6 +554,12 @@ final class NativePlaybackController {
             // (isPlaying == false) and the source node renders silence, so a skipped
             // track is "selected" but never audible.
             try engine.play()
+            didFadeOutForCurrentTrack = false
+            if crossfadeSeconds > 0 {
+                engine.fadeInMaster(seconds: min(crossfadeSeconds, 2.0))
+            } else {
+                engine.resetMasterVolume()
+            }
             temporarilyFailedTrackIds.remove(track.id)
             var state = engine.playbackState(queue: queueManager.dictionary)
             state["requestId"] = requestId
@@ -903,11 +921,26 @@ final class NativePlaybackController {
                     guard let self = self else { return }
                     let state = self.engine.playbackState(queue: self.queueManager.dictionary)
                     self.emit("progressChanged", state)
+                    self.maybeCrossfadeOut(state: state)
                     if (state["isPlaying"] as? Bool) != true {
                         self.stopProgressTimer()
                     }
                 }
             }
+        }
+    }
+
+    /// Dispara el fundido de salida cuando faltan `crossfadeSeconds` para el final. Debe llamarse en `queue`.
+    private func maybeCrossfadeOut(state: [String: Any]) {
+        guard crossfadeSeconds > 0, !didFadeOutForCurrentTrack,
+              (state["isPlaying"] as? Bool) == true else { return }
+        let currentTime = state["currentTime"] as? Double ?? 0
+        let duration = state["duration"] as? Double ?? 0
+        guard duration > crossfadeSeconds + 0.5, currentTime > 0 else { return }
+        let remaining = duration - currentTime
+        if remaining <= crossfadeSeconds {
+            didFadeOutForCurrentTrack = true
+            engine.fadeOutMaster(seconds: max(0.2, remaining))
         }
     }
 

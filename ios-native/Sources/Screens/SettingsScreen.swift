@@ -5,6 +5,7 @@ struct SettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var theme = ThemeStore.shared
     @ObservedObject private var loc = LocalizationStore.shared
+    @ObservedObject private var audio = AudioService.shared
     private let privacyURL = URL(string: "https://epicenterdsp.com/privacy/")!
     private let termsURL = URL(string: "https://epicenterdsp.com/terms/")!
 
@@ -52,6 +53,26 @@ struct SettingsScreen: View {
                         }
                     } header: {
                         Text(L("Idioma", "Language")).foregroundStyle(Theme.textMuted)
+                    }
+                    .listRowBackground(Theme.card)
+
+                    Section {
+                        Toggle(isOn: Binding(get: { audio.crossfadeEnabled }, set: { audio.setCrossfadeEnabled($0) })) {
+                            Text("Crossfade").foregroundStyle(Theme.textPrimary)
+                        }
+                        .tint(Theme.red)
+                        if audio.crossfadeEnabled {
+                            Picker(L("Duración", "Duration"),
+                                   selection: Binding(get: { audio.crossfadeSeconds }, set: { audio.setCrossfadeSeconds($0) })) {
+                                ForEach([3.0, 5.0, 7.0, 10.0], id: \.self) { s in Text("\(Int(s))s").tag(s) }
+                            }
+                            .pickerStyle(.segmented)
+                        }
+                    } header: {
+                        Text(L("Reproducción", "Playback")).foregroundStyle(Theme.textMuted)
+                    } footer: {
+                        Text(L("Mezcla suave entre canciones (fundido del volumen).",
+                               "Smooth blend between songs (volume fade).")).foregroundStyle(Theme.textMuted)
                     }
                     .listRowBackground(Theme.card)
 

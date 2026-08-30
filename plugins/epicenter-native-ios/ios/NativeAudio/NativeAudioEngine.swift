@@ -119,6 +119,7 @@ final class NativeAudioEngine {
     private var loadedTrack: NativeTrack?
     private var scheduledStartFrame: AVAudioFramePosition = 0
     private var pausedFrame: AVAudioFramePosition = 0
+    private var fadeTimer: Timer?
     private var isScheduled = false
     private var isPlaying = false
     private var scheduleToken = 0
@@ -340,8 +341,58 @@ final class NativeAudioEngine {
         isPlaying = true
     }
 
+    // MARK: - Crossfade (fundido del volumen maestro; no toca el DSP)
+
+    /// Cancela cualquier fundido y deja el volumen maestro a plena ganancia (seguridad).
+    func resetMasterVolume() {
+        cancelFade()
+        setMasterVolume(1)
+    }
+
+    /// Fundido de entrada del volumen maestro (0 → 1) para la canción nueva.
+    func fadeInMaster(seconds: Double) {
+        guard seconds > 0.05 else { resetMasterVolume(); return }
+        setMasterVolume(0)
+        fadeMaster(to: 1, seconds: seconds)
+    }
+
+    /// Fundido de salida del volumen maestro (→ 0) al acercarse el final.
+    func fadeOutMaster(seconds: Double) {
+        guard seconds > 0.05 else { return }
+        fadeMaster(to: 0, seconds: seconds)
+    }
+
+    private func setMasterVolume(_ v: Float) {
+        engine.mainMixerNode.outputVolume = max(0, min(1, v))
+    }
+
+    private func cancelFade() {
+        DispatchQueue.main.async { [weak self] in
+            self?.fadeTimer?.invalidate()
+            self?.fadeTimer = nil
+        }
+    }
+
+    private func fadeMaster(to target: Float, seconds: Double) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.fadeTimer?.invalidate()
+            let start = self.engine.mainMixerNode.outputVolume
+            let steps = max(1, Int(seconds / 0.05))
+            var i = 0
+            self.fadeTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] timer in
+                guard let self = self else { timer.invalidate(); return }
+                i += 1
+                let f = Float(i) / Float(steps)
+                self.engine.mainMixerNode.outputVolume = start + (target - start) * min(f, 1)
+                if i >= steps { timer.invalidate(); self.fadeTimer = nil }
+            }
+        }
+    }
+
     func pause() {
         guard audioFile != nil else { return }
+        resetMasterVolume()
         pausedFrame = currentFramePosition()
         isPlaying = false
         if isFallbackPlayback {
@@ -351,6 +402,7 @@ final class NativeAudioEngine {
     }
 
     func stop(clearTrack: Bool = false) {
+        resetMasterVolume()
         scheduleToken += 1
         fallbackPlayerNode.stop()
         engine.pause()
@@ -375,6 +427,7 @@ final class NativeAudioEngine {
         guard let audioFile = audioFile else {
             throw EngineError.noLoadedTrack
         }
+        resetMasterVolume()
         let wasPlaying = isPlaying
         let safeSeconds = max(seconds, 0)
         let targetFrame = AVAudioFramePosition(safeSeconds * audioFile.processingFormat.sampleRate)

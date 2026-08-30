@@ -48,6 +48,10 @@ final class AudioService: ObservableObject {
     @Published var concertHallEnabled = false
     @Published var concertHallAmount: Double = 0
 
+    // Reproducción
+    @Published var crossfadeEnabled = false
+    @Published var crossfadeSeconds: Double = 5
+
     var hasTrack: Bool { currentTrackId != nil }
 
     private let repository = NativeTrackRepository()
@@ -250,6 +254,22 @@ final class AudioService: ObservableObject {
     func setConcertHallEnabled(_ on: Bool) { concertHallEnabled = on; _ = playback.setConcertHallEnabled(on) }
     func setConcertHallAmount(_ v: Double) { concertHallAmount = v; _ = playback.setConcertHallAmount(v) }
 
+    // MARK: Reproducción (crossfade)
+
+    func setCrossfadeEnabled(_ on: Bool) {
+        crossfadeEnabled = on
+        UserDefaults.standard.set(on, forKey: "crossfadeEnabled")
+        updateCrossfade()
+    }
+    func setCrossfadeSeconds(_ s: Double) {
+        crossfadeSeconds = s
+        UserDefaults.standard.set(s, forKey: "crossfadeSeconds")
+        updateCrossfade()
+    }
+    private func updateCrossfade() {
+        _ = playback.setCrossfade(seconds: crossfadeEnabled ? crossfadeSeconds : 0)
+    }
+
     // MARK: State loading
 
     private func loadDspState() {
@@ -272,6 +292,9 @@ final class AudioService: ObservableObject {
         autoEqEnabled = UserDefaults.standard.bool(forKey: "autoEqEnabled")
         autoEpicenterEnabled = UserDefaults.standard.bool(forKey: "autoEpicenterEnabled")
         updateEngineAuto()
+        crossfadeEnabled = UserDefaults.standard.bool(forKey: "crossfadeEnabled")
+        if let s = UserDefaults.standard.object(forKey: "crossfadeSeconds") as? Double { crossfadeSeconds = s }
+        updateCrossfade()
     }
 
     /// Canciones escuchadas recientemente (resueltas a modelos, en orden de recencia).

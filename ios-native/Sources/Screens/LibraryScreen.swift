@@ -7,6 +7,7 @@ struct LibraryScreen: View {
     @ObservedObject private var store = LibraryStore.shared
     @State private var tracks: [NativeTrack] = []
     @State private var showSearch = false
+    @State private var showSettings = false
 
     private var favoriteTracks: [NativeTrack] { tracks.filter { store.isFavorite($0.id) } }
     private var hiResTracks: [NativeTrack] { tracks.filter { $0.isHiRes } }
@@ -88,7 +89,10 @@ struct LibraryScreen: View {
                         Image(systemName: "magnifyingglass").foregroundStyle(Theme.textPrimary)
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button { showSettings = true } label: {
+                        Image(systemName: "gearshape.fill").foregroundStyle(Theme.textPrimary)
+                    }
                     Button { audio.importTracks() } label: {
                         Image(systemName: "plus.circle.fill").foregroundStyle(Theme.red)
                     }
@@ -97,6 +101,7 @@ struct LibraryScreen: View {
         }
         .navigationViewStyle(.stack)
         .sheet(isPresented: $showSearch) { SearchScreen() }
+        .sheet(isPresented: $showSettings) { SettingsScreen() }
         .onAppear { tracks = audio.loadLibrary() }
     }
 

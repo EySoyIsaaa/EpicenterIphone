@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Ajustes: guía de uso, enlaces legales externos (privacidad/términos) y "Acerca de".
 struct SettingsScreen: View {
+    @Environment(\.dismiss) private var dismiss
     private let privacyURL = URL(string: "https://epicenterdsp.com/privacy/")!
     private let termsURL = URL(string: "https://epicenterdsp.com/terms/")!
 
@@ -64,6 +65,11 @@ struct SettingsScreen: View {
                 .scrollContentBackgroundHiddenCompat()
             }
             .navigationTitle("Ajustes")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cerrar") { dismiss() }.foregroundStyle(Theme.red)
+                }
+            }
         }
         .navigationViewStyle(.stack)
     }

@@ -1,12 +1,12 @@
 import SwiftUI
 
 /// Shell de 5 pestañas + mini-reproductor.
-/// Inicio · Música · Epicenter · Efectos · Ajustes. (Buscar vive dentro de Música; EQ dentro de Epicenter.)
+/// Inicio · Música · Epicenter · EQ · Efectos. (Buscar y Ajustes viven dentro de Música.)
 struct RootView: View {
     @ObservedObject private var audio = AudioService.shared
     @State private var selection: Tab = .inicio
 
-    enum Tab { case inicio, musica, epicenter, efectos, ajustes }
+    enum Tab { case inicio, musica, epicenter, eq, efectos }
 
     private var showMini: Bool { audio.hasTrack && selection != .inicio }
 
@@ -25,13 +25,13 @@ struct RootView: View {
                     .tag(Tab.epicenter)
                     .tabItem { Label("Epicenter", systemImage: "waveform") }
 
+                EqScreen()
+                    .tag(Tab.eq)
+                    .tabItem { Label("EQ", systemImage: "slider.vertical.3") }
+
                 EffectsScreen()
                     .tag(Tab.efectos)
                     .tabItem { Label("Efectos", systemImage: "wand.and.rays") }
-
-                SettingsScreen()
-                    .tag(Tab.ajustes)
-                    .tabItem { Label("Ajustes", systemImage: "gearshape.fill") }
             }
             .tint(Theme.red)
 

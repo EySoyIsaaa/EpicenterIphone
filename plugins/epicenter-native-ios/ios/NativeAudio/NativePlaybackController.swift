@@ -638,7 +638,8 @@ final class NativePlaybackController {
     private func applyAutoEQ(gains: [Float], stableId: String, cached: Bool) {
         let doubleGains = gains.map { Double($0) }
         _ = engine.setEqBands(doubleGains)
-        _ = engine.setEqEnabled(true)
+        // No forzamos setEqEnabled(true): el ajuste automático solo actualiza la curva.
+        // Solo suena si el usuario tiene el ecualizador activado — no lo enciende por su cuenta.
         print("[AutoEQ] applied stableId=\(stableId) cached=\(cached)")
         emit("playbackStateChanged", engine.playbackState(queue: queueManager.dictionary))
         emit("autoEqApplied", [

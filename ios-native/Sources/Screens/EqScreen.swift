@@ -10,37 +10,39 @@ struct EqScreen: View {
     ]
 
     var body: some View {
-        ZStack {
-            Theme.background.ignoresSafeArea()
-            VStack(spacing: 16) {
-                Toggle(isOn: Binding(get: { audio.eqEnabled }, set: { audio.setEqEnabled($0) })) {
-                    Text("Ecualizador activo").font(.subheadline).foregroundStyle(Theme.textPrimary)
-                }
-                .tint(Theme.red)
-                .padding(.horizontal)
-
-                autoEqBanner
-                    .padding(.horizontal)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .bottom, spacing: 16) {
-                        ForEach(0..<31, id: \.self) { i in
-                            bandColumn(i)
-                        }
+        NavigationView {
+            ZStack {
+                Theme.background.ignoresSafeArea()
+                VStack(spacing: 16) {
+                    Toggle(isOn: Binding(get: { audio.eqEnabled }, set: { audio.setEqEnabled($0) })) {
+                        Text("Ecualizador activo").font(.subheadline).foregroundStyle(Theme.textPrimary)
                     }
+                    .tint(Theme.red)
                     .padding(.horizontal)
-                    .padding(.vertical, 8)
-                }
-                .opacity(audio.eqEnabled ? 1 : 0.45)
-                .disabled(!audio.eqEnabled)
 
-                Button("Restablecer") { audio.resetEq() }
-                    .foregroundStyle(Theme.textSecondary)
+                    autoEqBanner
+                        .padding(.horizontal)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(alignment: .bottom, spacing: 16) {
+                            ForEach(0..<31, id: \.self) { i in
+                                bandColumn(i)
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                    }
+                    .opacity(audio.eqEnabled ? 1 : 0.45)
+                    .disabled(!audio.eqEnabled)
+
+                    Button("Restablecer") { audio.resetEq() }
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .padding(.vertical)
             }
-            .padding(.vertical)
+            .navigationTitle("Ecualizador")
         }
-        .navigationTitle("Ecualizador")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationViewStyle(.stack)
     }
 
     private var autoEqBanner: some View {
@@ -54,7 +56,7 @@ struct EqScreen: View {
                     .labelsHidden()
                     .tint(Theme.red)
             }
-            Text("Analiza el audio en tu dispositivo y aplica un ajuste automático por canción para mantener un sonido potente, claro y estable.")
+            Text("Analiza cada canción y ajusta el ecualizador automáticamente. Solo suena cuando el ecualizador está activo — no lo enciende por su cuenta.")
                 .font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
         }
         .padding(12)

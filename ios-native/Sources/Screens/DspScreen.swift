@@ -46,7 +46,7 @@ struct DspScreen: View {
                                 .font(.caption).foregroundStyle(Theme.textMuted)
                         }
 
-                        NavigationLink(destination: EqScreen()) { card("Ecualizador", "slider.horizontal.3") }
+                        autoEpicenterCard
                             .padding(.top, 4)
                     }
                     .padding()
@@ -85,13 +85,20 @@ struct DspScreen: View {
         }
     }
 
-    private func card(_ title: String, _ icon: String) -> some View {
+    private var autoEpicenterCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: icon).foregroundStyle(Theme.red)
-            Text(title).font(.system(size: 15, weight: .bold)).foregroundStyle(Theme.textPrimary)
+            Toggle(isOn: Binding(get: { audio.autoEpicenterEnabled }, set: { audio.setAutoEpicenterEnabled($0) })) {
+                HStack(spacing: 8) {
+                    Image(systemName: "wand.and.stars").foregroundStyle(Theme.red)
+                    Text("Ajuste automático").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                }
+            }
+            .tint(Theme.red)
+            Text("Analiza cada canción para reforzar el bajo. Solo actúa con Epicenter activo — no lo enciende por su cuenta. Independiente del Auto-EQ del ecualizador.")
+                .font(.caption).foregroundStyle(Theme.textMuted)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.red.opacity(0.35), lineWidth: 1))
     }
 }

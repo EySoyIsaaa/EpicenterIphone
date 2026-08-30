@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Reproductor (pestaña Inicio): carátula con glow, info de calidad (bit/kHz/kbps + Hi-Res),
 /// barra de tiempo, transporte y controles (favorito, playlist, cola).
@@ -43,65 +44,74 @@ struct PlayerScreen: View {
         }
     }
 
+    private var artSize: CGFloat { min(UIScreen.main.bounds.width - 60, 370) }
+
     private var content: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
+            Spacer(minLength: 6)
             Text("REPRODUCIENDO")
-                .font(.system(size: 10, weight: .black)).kerning(2)
+                .font(.system(size: 11, weight: .black)).kerning(2.5)
                 .foregroundStyle(Theme.red)
-                .padding(.top, 6)
 
-            AlbumArtwork(path: audio.artworkPath, size: 300)
+            Spacer(minLength: 22)
+            AlbumArtwork(path: audio.artworkPath, size: artSize)
                 .overlay(RoundedRectangle(cornerRadius: 18).stroke(Theme.border, lineWidth: 1))
-                .shadow(color: .black.opacity(0.55), radius: 24, y: 14)
+                .shadow(color: .black.opacity(0.6), radius: 28, y: 16)
 
-            VStack(spacing: 8) {
-                Text(audio.title).font(.title3.weight(.bold))
+            Spacer(minLength: 24)
+            VStack(spacing: 10) {
+                Text(audio.title).font(.title.weight(.bold))
                     .foregroundStyle(Theme.textPrimary)
                     .multilineTextAlignment(.center).lineLimit(2)
                 Text(audio.artist.isEmpty ? "Artista desconocido" : audio.artist)
+                    .font(.title3)
                     .foregroundStyle(Theme.textSecondary).lineLimit(1)
                 if let track = trackInfo {
-                    QualityChips(track: track).padding(.top, 2)
+                    QualityChips(track: track).padding(.top, 4)
                 }
             }
 
+            Spacer(minLength: 24)
             seekBar
 
+            Spacer(minLength: 20)
             transport
 
+            Spacer(minLength: 18)
             secondaryControls
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
         }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 12)
+        .frame(maxHeight: .infinity)
+        .padding(.horizontal, 28)
+        .padding(.bottom, 10)
     }
 
     private var transport: some View {
-        HStack(spacing: 30) {
+        HStack(spacing: 32) {
             Button { audio.cycleRepeat() } label: {
                 Image(systemName: audio.repeatMode == .one ? "repeat.1" : "repeat")
-                    .font(.system(size: 18))
+                    .font(.system(size: 21))
                     .foregroundStyle(audio.repeatMode == .off ? Theme.textMuted : Theme.red)
             }
             Button { audio.previous() } label: {
-                Image(systemName: "backward.fill").font(.title2)
+                Image(systemName: "backward.fill").font(.system(size: 30))
             }
             Button { audio.togglePlayPause() } label: {
                 Image(systemName: audio.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 72))
+                    .font(.system(size: 86))
             }
             Button { audio.next() } label: {
-                Image(systemName: "forward.fill").font(.title2)
+                Image(systemName: "forward.fill").font(.system(size: 30))
             }
             Button { audio.shuffleLibrary() } label: {
-                Image(systemName: "shuffle").font(.system(size: 18)).foregroundStyle(Theme.textMuted)
+                Image(systemName: "shuffle").font(.system(size: 21)).foregroundStyle(Theme.textMuted)
             }
         }
         .foregroundStyle(Theme.textPrimary)
     }
 
     private var secondaryControls: some View {
-        HStack(spacing: 44) {
+        HStack(spacing: 50) {
             Button {
                 if let id = audio.currentTrackId {
                     favorites.toggleFavorite(id)
@@ -109,7 +119,7 @@ struct PlayerScreen: View {
                 }
             } label: {
                 Image(systemName: isCurrentFavorite ? "heart.fill" : "heart")
-                    .font(.title3)
+                    .font(.title2)
                     .foregroundStyle(isCurrentFavorite ? Theme.red : Theme.textMuted)
                     .scaleEffect(isCurrentFavorite ? 1.12 : 1.0)
                     .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isCurrentFavorite)
@@ -117,10 +127,10 @@ struct PlayerScreen: View {
             Button {
                 if let id = audio.currentTrackId { addTarget = TrackIdSelection(ids: [id]) }
             } label: {
-                Image(systemName: "plus.circle").font(.title3).foregroundStyle(Theme.textMuted)
+                Image(systemName: "plus.circle").font(.title2).foregroundStyle(Theme.textMuted)
             }
             Button { showingQueue = true } label: {
-                Image(systemName: "list.bullet").font(.title3).foregroundStyle(Theme.textMuted)
+                Image(systemName: "list.bullet").font(.title2).foregroundStyle(Theme.textMuted)
             }
         }
     }

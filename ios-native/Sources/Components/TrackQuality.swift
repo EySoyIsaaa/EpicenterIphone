@@ -30,18 +30,22 @@ extension NativeTrack {
 }
 
 /// Fila de chips de calidad para el reproductor (badge Hi-Res + bit/kHz/kbps).
+/// Cuando la pista es Hi-Res, los chips llevan contorno y texto dorados.
 struct QualityChips: View {
     let track: NativeTrack
+    static let gold = Color(red: 0.85, green: 0.68, blue: 0.36)
+
     var body: some View {
-        HStack(spacing: 6) {
-            if track.isHiRes { HiResBadge() }
+        let hi = track.isHiRes
+        return HStack(spacing: 7) {
+            if hi { HiResBadge() }
             ForEach(track.qualityChips, id: \.self) { chip in
                 Text(chip)
-                    .font(.system(size: 10, weight: .bold))
-                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .font(.system(size: 11, weight: .bold))
+                    .padding(.horizontal, 9).padding(.vertical, 5)
                     .background(Theme.card, in: Capsule())
-                    .overlay(Capsule().stroke(Theme.border, lineWidth: 1))
-                    .foregroundStyle(Theme.textSecondary)
+                    .overlay(Capsule().stroke(hi ? QualityChips.gold : Theme.border, lineWidth: 1))
+                    .foregroundStyle(hi ? QualityChips.gold : Theme.textSecondary)
             }
         }
     }

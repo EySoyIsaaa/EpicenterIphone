@@ -30,6 +30,7 @@ final class AudioService: ObservableObject {
     // Epicenter / DSP
     @Published var epicenterEnabled = false
     @Published var headphonesMode = false          // true = Audífonos, false = Car Audio
+    @Published var autoEpicenterEnabled = false    // ajuste automático (independiente del Auto-EQ)
     @Published var intensity: Double = 100
     @Published var sweepFreq: Double = 45
     @Published var width: Double = 50
@@ -221,11 +222,25 @@ final class AudioService: ObservableObject {
         _ = playback.setEqBand(index: index, gain: gain)
     }
     func resetEq() { eqBands = Array(repeating: 0, count: 31); _ = playback.resetEq() }
-    /// Auto-EQ: analiza cada canción en el dispositivo y aplica una curva automática.
+    /// Auto-EQ (pantalla Ecualizador): analiza cada canción y ajusta la curva. Independiente
+    /// del ajuste automático de Epicenter. Nunca enciende el ecualizador por su cuenta.
     func setAutoEqEnabled(_ on: Bool) {
         autoEqEnabled = on
         UserDefaults.standard.set(on, forKey: "autoEqEnabled")
-        _ = playback.setAutoEqEnabled(on)
+        updateEngineAuto()
+    }
+
+    /// Ajuste automático (pantalla Epicenter): independiente del Auto-EQ del ecualizador.
+    func setAutoEpicenterEnabled(_ on: Bool) {
+        autoEpicenterEnabled = on
+        UserDefaults.standard.set(on, forKey: "autoEpicenterEnabled")
+        updateEngineAuto()
+    }
+
+    /// El analizador por canción del motor corre si cualquiera de los dos automáticos está activo.
+    /// El motor solo ajusta valores; no activa ecualizador ni efectos por su cuenta.
+    private func updateEngineAuto() {
+        _ = playback.setAutoEqEnabled(autoEqEnabled || autoEpicenterEnabled)
     }
 
     // MARK: Effects
@@ -255,7 +270,8 @@ final class AudioService: ObservableObject {
         headphonesMode = (UserDefaults.standard.string(forKey: "epicenterMode") ?? "car") == "headphones"
         _ = playback.setEpicenterMode(headphones: headphonesMode)
         autoEqEnabled = UserDefaults.standard.bool(forKey: "autoEqEnabled")
-        if autoEqEnabled { _ = playback.setAutoEqEnabled(true) }
+        autoEpicenterEnabled = UserDefaults.standard.bool(forKey: "autoEpicenterEnabled")
+        updateEngineAuto()
     }
 
     /// Canciones escuchadas recientemente (resueltas a modelos, en orden de recencia).

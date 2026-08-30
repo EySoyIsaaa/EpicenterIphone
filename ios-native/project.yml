@@ -19,6 +19,7 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+      - path: Support/Assets.xcassets
       # Servicios nativos existentes (reutilizados, SIN el envoltorio de Capacitor).
       # Se referencian en su ubicación actual: una sola copia, sin duplicar.
       - path: ../plugins/epicenter-native-ios/ios/DSP

@@ -10,9 +10,9 @@ struct NameInputSheet: View {
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Bool
 
-    init(title: String, initial: String = "", saveLabel: String = "Guardar", onSave: @escaping (String) -> Void) {
+    init(title: String, initial: String = "", saveLabel: String? = nil, onSave: @escaping (String) -> Void) {
         self.title = title
-        self.saveLabel = saveLabel
+        self.saveLabel = saveLabel ?? L("Guardar", "Save")
         self.onSave = onSave
         _text = State(initialValue: initial)
     }
@@ -22,7 +22,7 @@ struct NameInputSheet: View {
             ZStack {
                 Theme.background.ignoresSafeArea()
                 VStack(spacing: 16) {
-                    TextField("Nombre", text: $text)
+                    TextField(L("Nombre", "Name"), text: $text)
                         .focused($focused)
                         .foregroundStyle(Theme.textPrimary)
                         .padding(14)
@@ -37,7 +37,7 @@ struct NameInputSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") { dismiss() }.foregroundStyle(Theme.textSecondary)
+                    Button(L("Cancelar", "Cancel")) { dismiss() }.foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(saveLabel, action: save)
@@ -73,13 +73,13 @@ struct AddToPlaylistSheet: View {
                     Button { creating = true } label: {
                         HStack(spacing: 12) {
                             Image(systemName: "plus.circle.fill").foregroundStyle(Theme.red)
-                            Text("Nueva playlist").foregroundStyle(Theme.textPrimary)
+                            Text(L("Nueva playlist", "New playlist")).foregroundStyle(Theme.textPrimary)
                         }
                     }
                     .listRowBackground(Theme.card)
 
                     if store.playlists.isEmpty {
-                        Text("Aún no tienes playlists")
+                        Text(L("Aún no tienes playlists", "You have no playlists yet"))
                             .foregroundStyle(Theme.textMuted)
                             .listRowBackground(Color.clear)
                     } else {
@@ -102,15 +102,15 @@ struct AddToPlaylistSheet: View {
                 .listStyle(.insetGrouped)
                 .scrollContentBackgroundHiddenCompat()
             }
-            .navigationTitle("Agregar a playlist")
+            .navigationTitle(L("Agregar a playlist", "Add to playlist"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cerrar") { dismiss() }.foregroundStyle(Theme.textSecondary)
+                    Button(L("Cerrar", "Close")) { dismiss() }.foregroundStyle(Theme.textSecondary)
                 }
             }
             .sheet(isPresented: $creating) {
-                NameInputSheet(title: "Nueva playlist", saveLabel: "Crear") { name in
+                NameInputSheet(title: L("Nueva playlist", "New playlist"), saveLabel: L("Crear", "Create")) { name in
                     let playlist = store.createPlaylist(name: name)
                     store.addTracks(trackIds, to: playlist.id)
                     dismiss()
@@ -149,7 +149,7 @@ struct AddSongsSheet: View {
                 VStack(spacing: 0) {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted)
-                        TextField("Buscar", text: $query)
+                        TextField(L("Buscar", "Search"), text: $query)
                             .foregroundStyle(Theme.textPrimary)
                             .autocorrectionDisabled()
                     }
@@ -166,7 +166,7 @@ struct AddSongsSheet: View {
                                         .foregroundStyle(selected.contains(track.id) ? Theme.red : Theme.textMuted)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(track.title).foregroundStyle(Theme.textPrimary).lineLimit(1)
-                                        Text(track.artist ?? "Artista desconocido")
+                                        Text(track.artist ?? L("Artista desconocido", "Unknown artist"))
                                             .font(.system(size: 13)).foregroundStyle(Theme.textSecondary).lineLimit(1)
                                     }
                                 }
@@ -179,14 +179,14 @@ struct AddSongsSheet: View {
                     .listStyle(.plain)
                 }
             }
-            .navigationTitle("Agregar canciones")
+            .navigationTitle(L("Agregar canciones", "Add songs"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancelar") { dismiss() }.foregroundStyle(Theme.textSecondary)
+                    Button(L("Cancelar", "Cancel")) { dismiss() }.foregroundStyle(Theme.textSecondary)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(selected.isEmpty ? "Agregar" : "Agregar (\(selected.count))") {
+                    Button(selected.isEmpty ? L("Agregar", "Add") : L("Agregar", "Add") + " (\(selected.count))") {
                         store.addTracks(Array(selected), to: playlistId)
                         dismiss()
                     }

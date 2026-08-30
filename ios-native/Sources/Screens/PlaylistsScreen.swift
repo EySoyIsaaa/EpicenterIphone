@@ -4,6 +4,7 @@ import SwiftUI
 struct PlaylistsScreen: View {
     @ObservedObject private var store = LibraryStore.shared
     @ObservedObject private var audio = AudioService.shared
+    @ObservedObject private var loc = LocalizationStore.shared
     @State private var creating = false
     @State private var renaming: Playlist?
 
@@ -13,8 +14,8 @@ struct PlaylistsScreen: View {
             if store.playlists.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "music.note.list").font(.system(size: 44)).foregroundStyle(Theme.textMuted)
-                    Text("Sin playlists").font(.headline).foregroundStyle(Theme.textPrimary)
-                    Text("Crea una con el botón +").font(.footnote).foregroundStyle(Theme.textSecondary)
+                    Text(L("Sin playlists", "No playlists")).font(.headline).foregroundStyle(Theme.textPrimary)
+                    Text(L("Crea una con el botón +", "Create one with the + button")).font(.footnote).foregroundStyle(Theme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -30,7 +31,7 @@ struct PlaylistsScreen: View {
                                     Text(playlist.name)
                                         .font(.system(size: 15, weight: .medium))
                                         .foregroundStyle(Theme.textPrimary).lineLimit(1)
-                                    Text("\(playlist.trackIds.count) canción\(playlist.trackIds.count == 1 ? "" : "es")")
+                                    Text("\(playlist.trackIds.count) " + (playlist.trackIds.count == 1 ? L("canción", "song") : L("canciones", "songs")))
                                         .font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
                                 }
                             }
@@ -40,10 +41,10 @@ struct PlaylistsScreen: View {
                         .listRowSeparatorTint(Theme.border)
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) { store.deletePlaylist(playlist.id) } label: {
-                                Label("Eliminar", systemImage: "trash")
+                                Label(L("Eliminar", "Delete"), systemImage: "trash")
                             }
                             Button { renaming = playlist } label: {
-                                Label("Renombrar", systemImage: "pencil")
+                                Label(L("Renombrar", "Rename"), systemImage: "pencil")
                             }
                             .tint(.gray)
                         }
@@ -61,10 +62,10 @@ struct PlaylistsScreen: View {
             }
         }
         .sheet(isPresented: $creating) {
-            NameInputSheet(title: "Nueva playlist", saveLabel: "Crear") { store.createPlaylist(name: $0) }
+            NameInputSheet(title: L("Nueva playlist", "New playlist"), saveLabel: L("Crear", "Create")) { store.createPlaylist(name: $0) }
         }
         .sheet(item: $renaming) { playlist in
-            NameInputSheet(title: "Renombrar", initial: playlist.name) { store.renamePlaylist(playlist.id, to: $0) }
+            NameInputSheet(title: L("Renombrar", "Rename"), initial: playlist.name) { store.renamePlaylist(playlist.id, to: $0) }
         }
     }
 }
@@ -74,6 +75,7 @@ struct PlaylistDetailScreen: View {
     let playlistId: String
     @ObservedObject private var store = LibraryStore.shared
     @ObservedObject private var audio = AudioService.shared
+    @ObservedObject private var loc = LocalizationStore.shared
     @State private var addingSongs = false
     @State private var editMode: EditMode = .inactive
 
@@ -92,7 +94,7 @@ struct PlaylistDetailScreen: View {
                     Button { addingSongs = true } label: {
                         HStack(spacing: 12) {
                             Image(systemName: "plus.circle.fill").foregroundStyle(Theme.red)
-                            Text("Agregar canciones").foregroundStyle(Theme.textPrimary)
+                            Text(L("Agregar canciones", "Add songs")).foregroundStyle(Theme.textPrimary)
                         }
                     }
                     .listRowBackground(Color.clear)
@@ -107,7 +109,7 @@ struct PlaylistDetailScreen: View {
                             .listRowBackground(Color.clear)
                             .listRowSeparatorTint(Theme.border)
                         } else {
-                            Text("Canción no disponible")
+                            Text(L("Canción no disponible", "Song unavailable"))
                                 .foregroundStyle(Theme.textMuted)
                                 .listRowBackground(Color.clear)
                         }

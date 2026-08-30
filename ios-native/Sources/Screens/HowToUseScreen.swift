@@ -8,22 +8,35 @@ struct HowToUseScreen: View {
         let body: String
     }
 
-    private let intro = "Epicenter DSP es un reproductor local con énfasis en el procesador Epicenter para experiencias de audio potentes."
+    @ObservedObject private var loc = LocalizationStore.shared
 
-    private let steps: [Step] = [
-        Step(title: "1. Importa tu música",
-             body: "Toca + en Mi Música para importar archivos de audio desde la app Archivos."),
-        Step(title: "2. Inicia la reproducción",
-             body: "Selecciona cualquier canción o usa los botones Reproducir y Aleatorio en Canciones, Artistas o Playlists."),
-        Step(title: "3. Gestiona la cola",
-             body: "Agrega canciones a la cola, reproduce siguiente o reordena para el flujo exacto que deseas."),
-        Step(title: "4. Ajusta el ecualizador",
-             body: "Abre el ecualizador de 31 bandas desde DSP y vuelve a un sonido neutro cuando quieras."),
-        Step(title: "5. Usa Epicenter DSP",
-             body: "Activa Epicenter y ajusta Sweep, Width, Intensidad, Balance y Volumen según tu perfil. Elige modo Car Audio o Audífonos."),
-        Step(title: "6. Crea playlists",
-             body: "Crea playlists en Mi Música y reprodúcelas en orden o en aleatorio al instante."),
-    ]
+    private var intro: String {
+        L("Epicenter DSP es un reproductor local con énfasis en el procesador Epicenter para experiencias de audio potentes.",
+          "Epicenter DSP is a local player focused on the Epicenter processor for powerful audio experiences.")
+    }
+
+    private var steps: [Step] {
+        [
+            Step(title: L("1. Importa tu música", "1. Import your music"),
+                 body: L("Toca + en Música para importar archivos de audio desde la app Archivos.",
+                         "Tap + in Music to import audio files from the Files app.")),
+            Step(title: L("2. Inicia la reproducción", "2. Start playback"),
+                 body: L("Selecciona cualquier canción o usa los botones Reproducir y Aleatorio en Canciones, Artistas o Playlists.",
+                         "Pick any song or use the Play and Shuffle buttons in Songs, Artists or Playlists.")),
+            Step(title: L("3. Gestiona la cola", "3. Manage the queue"),
+                 body: L("Agrega canciones a la cola, reproduce siguiente o reordena para el flujo exacto que deseas.",
+                         "Add songs to the queue, play next or reorder for the exact flow you want.")),
+            Step(title: L("4. Ajusta el ecualizador", "4. Adjust the equalizer"),
+                 body: L("Abre el ecualizador de 31 bandas y vuelve a un sonido neutro cuando quieras.",
+                         "Open the 31-band equalizer and go back to a neutral sound whenever you like.")),
+            Step(title: L("5. Usa Epicenter DSP", "5. Use Epicenter DSP"),
+                 body: L("Activa Epicenter y ajusta Sweep, Width, Intensidad, Balance y Volumen según tu perfil. Elige modo Car Audio o Audífonos.",
+                         "Turn on Epicenter and adjust Sweep, Width, Intensity, Balance and Volume to taste. Choose Car Audio or Headphones mode.")),
+            Step(title: L("6. Crea playlists", "6. Create playlists"),
+                 body: L("Crea playlists en Música y reprodúcelas en orden o en aleatorio al instante.",
+                         "Create playlists in Music and play them in order or shuffled instantly.")),
+        ]
+    }
 
     var body: some View {
         ZStack {
@@ -49,7 +62,8 @@ struct HowToUseScreen: View {
                         Text("Tips")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(Theme.textPrimary)
-                        Text("Las pistas Hi-Res se marcan automáticamente. Marca tus canciones favoritas con el corazón para encontrarlas rápido.")
+                        Text(L("Las pistas Hi-Res se marcan automáticamente. Marca tus canciones favoritas con el corazón para encontrarlas rápido.",
+                               "Hi-Res tracks are tagged automatically. Mark your favorite songs with the heart to find them fast."))
                             .font(.system(size: 14))
                             .foregroundStyle(Theme.textSecondary)
                     }
@@ -57,7 +71,7 @@ struct HowToUseScreen: View {
                 .padding(20)
             }
         }
-        .navigationTitle("Cómo usar")
+        .navigationTitle(L("Cómo usar", "How to use"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

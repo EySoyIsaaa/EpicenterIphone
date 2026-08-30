@@ -4,11 +4,12 @@ import SwiftUI
 struct PlayShuffleBar: View {
     let tracks: [NativeTrack]
     @ObservedObject private var audio = AudioService.shared
+    @ObservedObject private var loc = LocalizationStore.shared
 
     var body: some View {
         HStack(spacing: 12) {
             Button { audio.play(tracks, startAt: 0) } label: {
-                Label("Reproducir", systemImage: "play.fill")
+                Label(L("Reproducir", "Play"), systemImage: "play.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
@@ -16,7 +17,7 @@ struct PlayShuffleBar: View {
                     .foregroundStyle(.white)
             }
             Button { audio.playShuffled(tracks) } label: {
-                Label("Aleatorio", systemImage: "shuffle")
+                Label(L("Aleatorio", "Shuffle"), systemImage: "shuffle")
                     .font(.system(size: 14, weight: .semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
@@ -38,13 +39,19 @@ struct SongCollection: View {
     var showsSort: Bool = false
     var showsHiResBadge: Bool = false
 
+    @ObservedObject private var loc = LocalizationStore.shared
     @State private var sort: SortMode = .added
 
     enum SortMode: String, CaseIterable, Identifiable {
-        case added = "Recientes"
-        case name = "Nombre"
-        case artist = "Artista"
+        case added, name, artist
         var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .added:  return L("Recientes", "Recent")
+            case .name:   return L("Nombre", "Name")
+            case .artist: return L("Artista", "Artist")
+            }
+        }
     }
 
     private var sortedTracks: [NativeTrack] {
@@ -63,7 +70,8 @@ struct SongCollection: View {
                 if showsHiResBadge {
                     HStack(spacing: 10) {
                         HiResBadge(height: 22)
-                        Text("Reproducción a máxima resolución sin recompresión.")
+                        Text(L("Reproducción a máxima resolución sin recompresión.",
+                               "Playback at maximum resolution without recompression."))
                             .font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
                         Spacer(minLength: 0)
                     }
@@ -72,8 +80,8 @@ struct SongCollection: View {
                 if !tracks.isEmpty {
                     PlayShuffleBar(tracks: sortedTracks)
                     if showsSort {
-                        Picker("Orden", selection: $sort) {
-                            ForEach(SortMode.allCases) { Text($0.rawValue).tag($0) }
+                        Picker(L("Orden", "Sort"), selection: $sort) {
+                            ForEach(SortMode.allCases) { Text($0.label).tag($0) }
                         }
                         .pickerStyle(.segmented)
                         .padding(.horizontal)

@@ -7,6 +7,7 @@ struct SongsList: View {
     let tracks: [NativeTrack]
     @ObservedObject private var audio = AudioService.shared
     @ObservedObject private var favorites = LibraryStore.shared
+    @ObservedObject private var loc = LocalizationStore.shared
     @State private var addTarget: TrackIdSelection?
 
     var body: some View {
@@ -14,7 +15,7 @@ struct SongsList: View {
             if tracks.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: "music.note").font(.system(size: 34)).foregroundStyle(Theme.textMuted)
-                    Text("Nada aquí todavía").foregroundStyle(Theme.textSecondary)
+                    Text(L("Nada aquí todavía", "Nothing here yet")).foregroundStyle(Theme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -28,18 +29,18 @@ struct SongsList: View {
                         .listRowSeparatorTint(Theme.border)
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             Button { favorites.toggleFavorite(track.id) } label: {
-                                Label(favorites.isFavorite(track.id) ? "Quitar" : "Favorito",
+                                Label(favorites.isFavorite(track.id) ? L("Quitar", "Remove") : L("Favorito", "Favorite"),
                                       systemImage: favorites.isFavorite(track.id) ? "heart.slash.fill" : "heart.fill")
                             }
                             .tint(Theme.red)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button { audio.addToQueue([track.id]) } label: {
-                                Label("A la cola", systemImage: "text.append")
+                                Label(L("A la cola", "Queue"), systemImage: "text.append")
                             }
                             .tint(.gray)
                             Button { audio.playNext([track.id]) } label: {
-                                Label("Siguiente", systemImage: "text.insert")
+                                Label(L("Siguiente", "Next"), systemImage: "text.insert")
                             }
                             .tint(.blue)
                             Button { addTarget = TrackIdSelection(ids: [track.id]) } label: {
@@ -49,20 +50,20 @@ struct SongsList: View {
                         }
                         .contextMenu {
                             Button { audio.play(tracks, startAt: index) } label: {
-                                Label("Reproducir", systemImage: "play.fill")
+                                Label(L("Reproducir", "Play"), systemImage: "play.fill")
                             }
                             Button { audio.playNext([track.id]) } label: {
-                                Label("Reproducir siguiente", systemImage: "text.insert")
+                                Label(L("Reproducir siguiente", "Play next"), systemImage: "text.insert")
                             }
                             Button { audio.addToQueue([track.id]) } label: {
-                                Label("Agregar a la cola", systemImage: "text.append")
+                                Label(L("Agregar a la cola", "Add to queue"), systemImage: "text.append")
                             }
                             Button { favorites.toggleFavorite(track.id) } label: {
-                                Label(favorites.isFavorite(track.id) ? "Quitar de favoritos" : "Agregar a favoritos",
+                                Label(favorites.isFavorite(track.id) ? L("Quitar de favoritos", "Remove from favorites") : L("Agregar a favoritos", "Add to favorites"),
                                       systemImage: favorites.isFavorite(track.id) ? "heart.slash" : "heart")
                             }
                             Button { addTarget = TrackIdSelection(ids: [track.id]) } label: {
-                                Label("Agregar a playlist", systemImage: "plus")
+                                Label(L("Agregar a playlist", "Add to playlist"), systemImage: "plus")
                             }
                         }
                     }

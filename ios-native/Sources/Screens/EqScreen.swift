@@ -4,6 +4,7 @@ import SwiftUI
 /// igual que el visualizador del web, con Auto-EQ independiente.
 struct EqScreen: View {
     @ObservedObject private var audio = AudioService.shared
+    @ObservedObject private var loc = LocalizationStore.shared
 
     private static let range: ClosedRange<Double> = -8...8
     private static let freqs: [Double] = [
@@ -17,7 +18,7 @@ struct EqScreen: View {
                 Theme.background.ignoresSafeArea()
                 VStack(spacing: 14) {
                     Toggle(isOn: Binding(get: { audio.eqEnabled }, set: { audio.setEqEnabled($0) })) {
-                        Text("Ecualizador activo").font(.subheadline).foregroundStyle(Theme.textPrimary)
+                        Text(L("Ecualizador activo", "Equalizer on")).font(.subheadline).foregroundStyle(Theme.textPrimary)
                     }
                     .tint(Theme.red)
                     .padding(.horizontal)
@@ -25,7 +26,7 @@ struct EqScreen: View {
                     // Curva de respuesta (como el web).
                     VStack(spacing: 6) {
                         HStack {
-                            Text("RESPUESTA").font(.system(size: 10, weight: .black)).kerning(1.5)
+                            Text(L("RESPUESTA", "RESPONSE")).font(.system(size: 10, weight: .black)).kerning(1.5)
                             Spacer()
                             Text(audio.eqEnabled ? "Live" : "Bypass").font(.system(size: 10, weight: .black)).kerning(1.5)
                         }
@@ -63,13 +64,13 @@ struct EqScreen: View {
                     }
                     .opacity(audio.eqEnabled ? 1 : 0.5)
 
-                    Button("Restablecer") { audio.resetEq() }
+                    Button(L("Restablecer", "Reset")) { audio.resetEq() }
                         .foregroundStyle(Theme.textSecondary)
                         .padding(.bottom, 6)
                 }
                 .padding(.top, 8)
             }
-            .navigationTitle("Ecualizador")
+            .navigationTitle(L("Ecualizador", "Equalizer"))
         }
         .navigationViewStyle(.stack)
     }
@@ -78,14 +79,15 @@ struct EqScreen: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "wand.and.stars").foregroundStyle(Theme.red)
-                Text("Ajuste automático del ecualizador")
+                Text(L("Ajuste automático del ecualizador", "Automatic equalizer adjustment"))
                     .font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.textPrimary)
                 Spacer()
                 Toggle("", isOn: Binding(get: { audio.autoEqEnabled }, set: { audio.setAutoEqEnabled($0) }))
                     .labelsHidden()
                     .tint(Theme.red)
             }
-            Text("Analiza cada canción y ajusta el ecualizador automáticamente. Solo suena cuando el ecualizador está activo — no lo enciende por su cuenta.")
+            Text(L("Analiza cada canción y ajusta el ecualizador automáticamente. Solo suena cuando el ecualizador está activo — no lo enciende por su cuenta.",
+                   "Analyzes each song and adjusts the equalizer automatically. It only sounds when the equalizer is on — it won't turn it on by itself."))
                 .font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
         }
         .padding(12)

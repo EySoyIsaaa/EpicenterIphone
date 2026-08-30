@@ -5,6 +5,7 @@ import SwiftUI
 struct RootView: View {
     @ObservedObject private var audio = AudioService.shared
     @ObservedObject private var theme = ThemeStore.shared
+    @ObservedObject private var loc = LocalizationStore.shared
     @State private var selection: Tab = .inicio
     @AppStorage("hasOnboarded") private var hasOnboarded = false
 
@@ -17,11 +18,11 @@ struct RootView: View {
             TabView(selection: $selection) {
                 PlayerScreen()
                     .tag(Tab.inicio)
-                    .tabItem { Label("Inicio", systemImage: "play.circle.fill") }
+                    .tabItem { Label(L("Inicio", "Home"), systemImage: "play.circle.fill") }
 
                 LibraryScreen()
                     .tag(Tab.musica)
-                    .tabItem { Label("Música", systemImage: "music.note.list") }
+                    .tabItem { Label(L("Música", "Music"), systemImage: "music.note.list") }
 
                 DspScreen()
                     .tag(Tab.epicenter)
@@ -33,7 +34,7 @@ struct RootView: View {
 
                 EffectsScreen()
                     .tag(Tab.efectos)
-                    .tabItem { Label("Efectos", systemImage: "wand.and.rays") }
+                    .tabItem { Label(L("Efectos", "Effects"), systemImage: "wand.and.rays") }
             }
             .tint(Theme.red)
 

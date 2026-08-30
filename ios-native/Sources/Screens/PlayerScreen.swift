@@ -6,6 +6,7 @@ import UIKit
 struct PlayerScreen: View {
     @ObservedObject private var audio = AudioService.shared
     @ObservedObject private var favorites = LibraryStore.shared
+    @ObservedObject private var loc = LocalizationStore.shared
     @State private var seeking = false
     @State private var seekValue: Double = 0
     @State private var showingQueue = false
@@ -49,7 +50,7 @@ struct PlayerScreen: View {
     private var content: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 6)
-            Text("REPRODUCIENDO")
+            Text(L("REPRODUCIENDO", "NOW PLAYING"))
                 .font(.system(size: 11, weight: .black)).kerning(2.5)
                 .foregroundStyle(Theme.red)
 
@@ -63,7 +64,7 @@ struct PlayerScreen: View {
                 Text(audio.title).font(.title.weight(.bold))
                     .foregroundStyle(Theme.textPrimary)
                     .multilineTextAlignment(.center).lineLimit(2)
-                Text(audio.artist.isEmpty ? "Artista desconocido" : audio.artist)
+                Text(audio.artist.isEmpty ? L("Artista desconocido", "Unknown artist") : audio.artist)
                     .font(.title3)
                     .foregroundStyle(Theme.textSecondary).lineLimit(1)
                 if let track = trackInfo {
@@ -167,8 +168,8 @@ struct PlayerScreen: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "play.circle").font(.system(size: 54)).foregroundStyle(Theme.textMuted)
-            Text("Nada sonando").font(.headline).foregroundStyle(Theme.textPrimary)
-            Text("Elige una canción en Música").font(.footnote).foregroundStyle(Theme.textSecondary)
+            Text(L("Nada sonando", "Nothing playing")).font(.headline).foregroundStyle(Theme.textPrimary)
+            Text(L("Elige una canción en Música", "Pick a song in Music")).font(.footnote).foregroundStyle(Theme.textSecondary)
         }
     }
 

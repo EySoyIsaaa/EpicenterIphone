@@ -37,7 +37,7 @@ final class ThemeStore: ObservableObject {
     enum Mode: String, CaseIterable, Identifiable {
         case system, light, dark
         var id: String { rawValue }
-        var label: String { self == .system ? "Sistema" : self == .light ? "Claro" : "Oscuro" }
+        var label: String { self == .system ? L("Sistema", "System") : self == .light ? L("Claro", "Light") : L("Oscuro", "Dark") }
     }
 
     @Published var mode: Mode {

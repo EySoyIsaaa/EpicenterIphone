@@ -3,6 +3,7 @@ import SwiftUI
 /// Fase 4: Epicenter DSP — switch de modo Car/Audífonos, intensidad y perillas, accesos a EQ y Efectos.
 struct DspScreen: View {
     @ObservedObject private var audio = AudioService.shared
+    @ObservedObject private var loc = LocalizationStore.shared
 
     private var secondaryDisabled: Bool { !audio.epicenterEnabled || audio.headphonesMode }
 
@@ -23,7 +24,7 @@ struct DspScreen: View {
                             .foregroundStyle(Theme.textMuted)
 
                         // Perilla principal (Intensidad).
-                        KnobControl(label: "Intensidad", value: audio.intensity, range: 0...100, unit: "%",
+                        KnobControl(label: L("Intensidad", "Intensity"), value: audio.intensity, range: 0...100, unit: "%",
                                     disabled: !audio.epicenterEnabled, size: 150, featured: true) { audio.setIntensity($0) }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
@@ -36,13 +37,14 @@ struct DspScreen: View {
                                         disabled: secondaryDisabled) { audio.setWidth($0) }
                             KnobControl(label: "Balance", value: audio.balance, range: 0...100, unit: "%",
                                         disabled: secondaryDisabled) { audio.setBalance($0) }
-                            KnobControl(label: "Volumen", value: audio.volume, range: 0...150, unit: "%",
+                            KnobControl(label: L("Volumen", "Volume"), value: audio.volume, range: 0...150, unit: "%",
                                         disabled: !audio.epicenterEnabled) { audio.setVolume($0) }
                         }
                         .padding(.top, 4)
 
                         if audio.headphonesMode {
-                            Text("En modo Audífonos el motor se ajusta solo con Intensidad. Sweep, Width y Balance pertenecen al motor de Car Audio.")
+                            Text(L("En modo Audífonos el motor se ajusta solo con Intensidad. Sweep, Width y Balance pertenecen al motor de Car Audio.",
+                                   "In Headphones mode the engine is tuned with Intensity only. Sweep, Width and Balance belong to the Car Audio engine."))
                                 .font(.caption).foregroundStyle(Theme.textMuted)
                         }
 
@@ -59,14 +61,16 @@ struct DspScreen: View {
 
     private var modeHint: String {
         audio.headphonesMode
-            ? "Estás usando el tuning perfecto para audífonos y bocinas portátiles: graves profundos y limpios que sí se escuchan en drivers pequeños."
-            : "Estás usando el tuning perfecto para equipos de car audio: máxima presión de subgraves, pensado para sistemas con subwoofer."
+            ? L("Estás usando el tuning perfecto para audífonos y bocinas portátiles: graves profundos y limpios que sí se escuchan en drivers pequeños.",
+                "You're using the perfect tuning for headphones and portable speakers: deep, clean bass that actually plays on small drivers.")
+            : L("Estás usando el tuning perfecto para equipos de car audio: máxima presión de subgraves, pensado para sistemas con subwoofer.",
+                "You're using the perfect tuning for car audio: maximum sub-bass pressure, made for systems with a subwoofer.")
     }
 
     private var modeSwitch: some View {
         HStack(spacing: 6) {
             modeButton(title: "Car Audio", icon: "car.fill", active: !audio.headphonesMode) { audio.setHeadphonesMode(false) }
-            modeButton(title: "Audífonos", icon: "headphones", active: audio.headphonesMode) { audio.setHeadphonesMode(true) }
+            modeButton(title: L("Audífonos", "Headphones"), icon: "headphones", active: audio.headphonesMode) { audio.setHeadphonesMode(true) }
         }
         .padding(4)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
@@ -90,11 +94,12 @@ struct DspScreen: View {
             Toggle(isOn: Binding(get: { audio.autoEpicenterEnabled }, set: { audio.setAutoEpicenterEnabled($0) })) {
                 HStack(spacing: 8) {
                     Image(systemName: "wand.and.stars").foregroundStyle(Theme.red)
-                    Text("Ajuste automático").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                    Text(L("Ajuste automático", "Auto adjust")).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.textPrimary)
                 }
             }
             .tint(Theme.red)
-            Text("Analiza cada canción para reforzar el bajo. Solo actúa con Epicenter activo — no lo enciende por su cuenta. Independiente del Auto-EQ del ecualizador.")
+            Text(L("Analiza cada canción para reforzar el bajo. Solo actúa con Epicenter activo — no lo enciende por su cuenta. Independiente del Auto-EQ del ecualizador.",
+                   "Analyzes each song to reinforce the bass. Only acts when Epicenter is on — it won't turn it on by itself. Independent from the equalizer's Auto-EQ."))
                 .font(.caption).foregroundStyle(Theme.textMuted)
         }
         .padding()

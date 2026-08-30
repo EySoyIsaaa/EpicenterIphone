@@ -5,6 +5,7 @@ struct TrackRow: View {
     let track: NativeTrack
     var isCurrent: Bool = false
     @ObservedObject private var favorites = LibraryStore.shared
+    @ObservedObject private var loc = LocalizationStore.shared
 
     var body: some View {
         HStack(spacing: 12) {
@@ -21,7 +22,7 @@ struct TrackRow: View {
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(isCurrent ? Theme.red : Theme.textPrimary)
                     .lineLimit(1)
-                Text(track.artist ?? "Artista desconocido")
+                Text(track.artist ?? L("Artista desconocido", "Unknown artist"))
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.textSecondary)
                     .lineLimit(1)

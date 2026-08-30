@@ -5,6 +5,7 @@ import UIKit
 struct LibraryScreen: View {
     @ObservedObject private var audio = AudioService.shared
     @ObservedObject private var store = LibraryStore.shared
+    @ObservedObject private var loc = LocalizationStore.shared
     @State private var tracks: [NativeTrack] = []
     @State private var showSearch = false
     @State private var showSettings = false
@@ -50,27 +51,27 @@ struct LibraryScreen: View {
                                              subtitle: "\(store.playlists.count)",
                                              colors: [Color(red: 0.55, green: 0.35, blue: 0.95), Color(red: 0.33, green: 0.18, blue: 0.72)])
                             }
-                            NavigationLink(destination: SongCollection(title: "Favoritos", tracks: favoriteTracks)) {
-                                CategoryTile(icon: "heart.fill", title: "Favoritos",
+                            NavigationLink(destination: SongCollection(title: L("Favoritos", "Favorites"), tracks: favoriteTracks)) {
+                                CategoryTile(icon: "heart.fill", title: L("Favoritos", "Favorites"),
                                              subtitle: "\(favoriteTracks.count)",
                                              colors: [Color(red: 1.0, green: 0.32, blue: 0.46), Color(red: 0.85, green: 0.08, blue: 0.22)])
                             }
-                            NavigationLink(destination: SongCollection(title: "Canciones", tracks: tracks, showsSort: true)) {
-                                CategoryTile(icon: "music.note", title: "Canciones",
+                            NavigationLink(destination: SongCollection(title: L("Canciones", "Songs"), tracks: tracks, showsSort: true)) {
+                                CategoryTile(icon: "music.note", title: L("Canciones", "Songs"),
                                              subtitle: "\(tracks.count)",
                                              colors: [Color(red: 0.25, green: 0.55, blue: 1.0), Color(red: 0.10, green: 0.35, blue: 0.85)])
                             }
-                            NavigationLink(destination: GroupCollection(title: "Artistas", groups: artistGroups, icon: "music.mic")) {
-                                CategoryTile(icon: "music.mic", title: "Artistas",
+                            NavigationLink(destination: GroupCollection(title: L("Artistas", "Artists"), groups: artistGroups, icon: "music.mic")) {
+                                CategoryTile(icon: "music.mic", title: L("Artistas", "Artists"),
                                              subtitle: "\(artistGroups.count)",
                                              colors: [Color(red: 1.0, green: 0.6, blue: 0.2), Color(red: 0.9, green: 0.38, blue: 0.1)])
                             }
-                            NavigationLink(destination: GroupCollection(title: "Álbumes", groups: albumGroups, icon: "square.stack")) {
-                                CategoryTile(icon: "square.stack", title: "Álbumes",
+                            NavigationLink(destination: GroupCollection(title: L("Álbumes", "Albums"), groups: albumGroups, icon: "square.stack")) {
+                                CategoryTile(icon: "square.stack", title: L("Álbumes", "Albums"),
                                              subtitle: "\(albumGroups.count)",
                                              colors: [Color(red: 0.2, green: 0.75, blue: 0.68), Color(red: 0.08, green: 0.53, blue: 0.48)])
                             }
-                            NavigationLink(destination: SongCollection(title: "Alta Resolución", tracks: hiResTracks, showsHiResBadge: true)) {
+                            NavigationLink(destination: SongCollection(title: L("Alta Resolución", "High Resolution"), tracks: hiResTracks, showsHiResBadge: true)) {
                                 hiResCard
                             }
 
@@ -82,7 +83,7 @@ struct LibraryScreen: View {
                     }
                 }
             }
-            .navigationTitle("Música")
+            .navigationTitle(L("Música", "Music"))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button { showSearch = true } label: {
@@ -109,7 +110,7 @@ struct LibraryScreen: View {
 
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Escuchado recientemente")
+            Text(L("Escuchado recientemente", "Recently played"))
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Theme.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -134,8 +135,8 @@ struct LibraryScreen: View {
                 Image(systemName: "shuffle").font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text("Reproducir aleatorio").font(.system(size: 16, weight: .semibold)).foregroundStyle(Theme.textPrimary)
-                Text("\(tracks.count) canciones").font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
+                Text(L("Reproducir aleatorio", "Shuffle play")).font(.system(size: 16, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Text("\(tracks.count) " + L("canciones", "songs")).font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
             }
             Spacer()
             Image(systemName: "play.fill").foregroundStyle(Theme.red)
@@ -149,7 +150,7 @@ struct LibraryScreen: View {
         HStack(spacing: 14) {
             HiResBadge(height: 22)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Alta Resolución").font(.system(size: 16, weight: .semibold)).foregroundStyle(Theme.textPrimary)
+                Text(L("Alta Resolución", "High Resolution")).font(.system(size: 16, weight: .semibold)).foregroundStyle(Theme.textPrimary)
                 Text("\(hiResTracks.count)").font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
             }
             Spacer()
@@ -163,10 +164,10 @@ struct LibraryScreen: View {
     private var emptyState: some View {
         VStack(spacing: 14) {
             Image(systemName: "opticaldisc").font(.system(size: 54)).foregroundStyle(Theme.textMuted)
-            Text("Sin música todavía").font(.headline).foregroundStyle(Theme.textPrimary)
-            Text("Toca + para importar canciones").font(.footnote).foregroundStyle(Theme.textSecondary)
+            Text(L("Sin música todavía", "No music yet")).font(.headline).foregroundStyle(Theme.textPrimary)
+            Text(L("Toca + para importar canciones", "Tap + to import songs")).font(.footnote).foregroundStyle(Theme.textSecondary)
             Button { audio.importTracks() } label: {
-                Text("Agregar música")
+                Text(L("Agregar música", "Add music"))
                     .font(.system(size: 14, weight: .semibold))
                     .padding(.horizontal, 20).padding(.vertical, 11)
                     .background(Theme.red, in: Capsule())
@@ -247,7 +248,7 @@ private struct AlbumCell: View {
                 Text(album.name)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Theme.textPrimary).lineLimit(1)
-                Text(album.tracks.first?.artist ?? "Artista desconocido")
+                Text(album.tracks.first?.artist ?? L("Artista desconocido", "Unknown artist"))
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.textSecondary).lineLimit(1)
             }
@@ -267,7 +268,7 @@ private struct GroupCollection: View {
             if groups.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: icon).font(.system(size: 34)).foregroundStyle(Theme.textMuted)
-                    Text("Nada aquí todavía").foregroundStyle(Theme.textSecondary)
+                    Text(L("Nada aquí todavía", "Nothing here yet")).foregroundStyle(Theme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -279,7 +280,7 @@ private struct GroupCollection: View {
                                 Text(group.name)
                                     .font(.system(size: 15, weight: .medium))
                                     .foregroundStyle(Theme.textPrimary).lineLimit(1)
-                                Text("\(group.tracks.count) canción\(group.tracks.count == 1 ? "" : "es")")
+                                Text("\(group.tracks.count) " + (group.tracks.count == 1 ? L("canción", "song") : L("canciones", "songs")))
                                     .font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
                             }
                         }

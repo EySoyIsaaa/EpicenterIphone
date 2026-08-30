@@ -7,17 +7,22 @@ struct OnboardingView: View {
 
     private struct Page { let icon: String; let title: String; let body: String }
 
-    private let pages = [
-        Page(icon: "square.and.arrow.down.fill",
-             title: "Agrega tu música",
-             body: "Importa archivos de audio desde Archivos para comenzar."),
-        Page(icon: "slider.vertical.3",
-             title: "Ajusta tu sonido",
-             body: "Usa el ecualizador de 31 bandas y el procesador Epicenter para moldear bajos y claridad."),
-        Page(icon: "music.note.list",
-             title: "Disfruta sin interrupciones",
-             body: "Crea playlists, arma la cola y reproduce sin anuncios."),
-    ]
+    private var pages: [Page] {
+        [
+            Page(icon: "square.and.arrow.down.fill",
+                 title: L("Agrega tu música", "Add your music"),
+                 body: L("Importa archivos de audio desde Archivos para comenzar.",
+                         "Import audio files from Files to get started.")),
+            Page(icon: "slider.vertical.3",
+                 title: L("Ajusta tu sonido", "Shape your sound"),
+                 body: L("Usa el ecualizador de 31 bandas y el procesador Epicenter para moldear bajos y claridad.",
+                         "Use the 31-band equalizer and the Epicenter processor to shape bass and clarity.")),
+            Page(icon: "music.note.list",
+                 title: L("Disfruta sin interrupciones", "Enjoy without interruptions"),
+                 body: L("Crea playlists, arma la cola y reproduce sin anuncios.",
+                         "Create playlists, build the queue and play with no ads.")),
+        ]
+    }
 
     var body: some View {
         ZStack {
@@ -25,7 +30,7 @@ struct OnboardingView: View {
             VStack(spacing: 0) {
                 HStack {
                     Spacer()
-                    Button("Saltar") { onDone() }
+                    Button(L("Saltar", "Skip")) { onDone() }
                         .foregroundStyle(Theme.textMuted)
                         .padding()
                 }
@@ -38,7 +43,7 @@ struct OnboardingView: View {
                 .tabViewStyle(.page(indexDisplayMode: .always))
                 .indexViewStyle(.page(backgroundDisplayMode: .always))
 
-                Button(step == pages.count - 1 ? "Listo" : "Siguiente") {
+                Button(step == pages.count - 1 ? L("Listo", "Done") : L("Siguiente", "Next")) {
                     if step == pages.count - 1 { onDone() }
                     else { withAnimation { step += 1 } }
                 }

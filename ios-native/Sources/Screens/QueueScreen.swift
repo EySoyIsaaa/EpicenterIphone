@@ -4,6 +4,7 @@ import SwiftUI
 /// Tocar salta a la canción; deslizar la quita; el botón Editar permite reordenar.
 struct QueueScreen: View {
     @ObservedObject private var audio = AudioService.shared
+    @ObservedObject private var loc = LocalizationStore.shared
     @Environment(\.dismiss) private var dismiss
     @State private var editMode: EditMode = .inactive
 
@@ -14,7 +15,7 @@ struct QueueScreen: View {
                 if audio.queueTrackIds.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "list.bullet").font(.system(size: 44)).foregroundStyle(Theme.textMuted)
-                        Text("Cola vacía").font(.headline).foregroundStyle(Theme.textPrimary)
+                        Text(L("Cola vacía", "Empty queue")).font(.headline).foregroundStyle(Theme.textPrimary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -28,7 +29,7 @@ struct QueueScreen: View {
                                 .listRowBackground(Color.clear)
                                 .listRowSeparatorTint(Theme.border)
                             } else {
-                                Text("Canción no disponible")
+                                Text(L("Canción no disponible", "Song unavailable"))
                                     .foregroundStyle(Theme.textMuted)
                                     .listRowBackground(Color.clear)
                             }
@@ -39,11 +40,11 @@ struct QueueScreen: View {
                     .listStyle(.plain)
                 }
             }
-            .navigationTitle("Cola")
+            .navigationTitle(L("Cola", "Queue"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Listo") { dismiss() }.foregroundStyle(Theme.red)
+                    Button(L("Listo", "Done")) { dismiss() }.foregroundStyle(Theme.red)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if !audio.queueTrackIds.isEmpty { EditButton() }

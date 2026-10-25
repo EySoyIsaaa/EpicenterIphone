@@ -1,60 +1,60 @@
-# EpicenterDSP — app nativa (SwiftUI)
+# EpicenterDSP — app SwiftUI
 
-Reescritura de la UI a **SwiftUI 100% nativo** (sin Capacitor/WebView). El backend de audio, DSP,
-biblioteca y CarPlay se irá trayendo por fases; el resto del código nativo actual vive todavía en
-`../plugins/epicenter-native-ios` y `../ios`.
+Esta es la app nativa actual: reproductor, biblioteca, cola, Epicenter Car Audio/Audífonos,
+ecualizador de 31 bandas, efectos, ajustes y playlists. Reutiliza el motor Swift/ObjC++/C++
+de `../plugins/epicenter-native-ios/ios` sin el envoltorio de Capacitor.
 
-El proyecto de Xcode **se genera desde `project.yml` con XcodeGen** (así se puede editar todo desde
-cualquier equipo y queda limpio en git — no hay `.xcodeproj` versionado con conflictos).
+## Actualizar y abrir en la Mac
 
-## Requisitos (una sola vez, en la Mac)
+Desde la raíz del repositorio:
+
+```bash
+git switch feat/native-ui
+git pull --ff-only
+bash ABRIR_APP_NATIVA.command
+```
+
+El comando verifica que la copia incluya los arreglos del commit `f9afc46`, regenera el
+proyecto y abre `ios-native/EpicenterDSP.xcodeproj` por su ruta absoluta. El commit
+`7672833` es anterior a los ocho arreglos. La app nueva se identifica como **4.0 (2)**
+en Música → Ajustes → Acerca de y en la apertura.
+
+## Requisitos
+
+Xcode con sus componentes instalados y XcodeGen:
 
 ```bash
 brew install xcodegen
 ```
 
-## Generar y abrir el proyecto
+Para abrir manualmente, desde esta carpeta:
 
 ```bash
-cd ios-native
-xcodegen generate        # crea EpicenterDSP.xcodeproj a partir de project.yml
+xcodegen generate
 open EpicenterDSP.xcodeproj
 ```
 
-> Cada vez que yo agregue, mueva o quite archivos, vuelve a correr `xcodegen generate`.
+Regenera el proyecto después de actualizar el repositorio. `project.yml` define las
+fuentes, recursos, frameworks y el identificador; el `.xcodeproj` generado no se versiona.
 
-## Antes de compilar
+## Ejecutar en Xcode
 
-1. En Xcode: selecciona el target **EpicenterDSP** → pestaña **Signing & Capabilities**.
-2. Marca **Automatically manage signing** y elige tu **Team**.
-3. Verifica el **Bundle Identifier** (`com.epicenterdsp.player`). ⚠️ Debe ser **idéntico** al de tu
-   app en App Store Connect para que sea una actualización de la app publicada.
+1. Esquema **EpicenterDSP** y destino iPhone/simulador.
+2. Target **EpicenterDSP** → **Signing & Capabilities** → elige tu Team.
+3. **⇧⌘K** para limpiar la compilación si estás comprobando una actualización.
+4. **⌘R** para instalar y ejecutar. Comprueba **4.0 (2)** en la app.
 
-## Compilar
+La configuración actual usa `com.epicenterdsp.player`. Conserva el Bundle Identifier
+de la app que estés actualizando para que iOS la reconozca como la misma instalación.
 
-`⌘R` en un simulador o dispositivo. **Hito de esta fase:** la app arranca y muestra el shell de
-**5 pestañas** (Inicio · Mi Música · Buscar · DSP · Ajustes), cada una con un placeholder.
+## Validación
 
-## Estructura
+El workflow [Native iOS](../.github/workflows/native-ios.yml) ejecuta las regresiones de
+cola, ajuste automático, análisis Hi-Res y DSP, compila SwiftUI para iOS Simulator y
+comprueba la versión de la aplicación generada.
 
-```
-ios-native/
-├── project.yml            definición del proyecto (XcodeGen)
-├── Support/
-│   └── Info.plist         config del bundle (modo audio en segundo plano, etc.)
-└── Sources/
-    └── App/
-        ├── EpicenterApp.swift   @main (entry SwiftUI)
-        ├── RootView.swift       shell de 5 pestañas
-        └── Theme.swift          paleta de marca
-```
+Los ocho ajustes y las comprobaciones de escucha/dispositivo están documentados en
+[VALIDACION-AJUSTES.md](VALIDACION-AJUSTES.md).
 
-## Estado / roadmap
-
-- [x] **Fase 0a** — esqueleto que compila y muestra las 5 pestañas.
-- [ ] Fase 0b — traer los servicios nativos (motor, biblioteca, DSP) fuera del pod de Capacitor.
-- [ ] Fase 1 — reproductor + reproducción base.
-- [ ] Fase 2 — biblioteca. Fase 3 — cola. Fase 4 — DSP. Fase 5 — playlists. Fase 6 — ajustes.
-- [ ] Fase 7 — CarPlay + pulido. Fase 8 — retirar la capa web y publicar.
-
-Plan completo en `../PLAN-UI-NATIVA-IOS.md`.
+La compilación web y `cap sync ios` pertenecen al proyecto anterior de `../ios/App`;
+no actualizan esta interfaz SwiftUI.

@@ -43,7 +43,9 @@ jobs:
           "$RUNNER_TEMP/dsp-regressions"
       - name: Generate native project
         working-directory: ios-native
-        run: xcodegen generate
+        run: |
+          bash -n ../ABRIR_APP_NATIVA.command
+          xcodegen generate
       - name: Compile SwiftUI app for iOS Simulator
         working-directory: ios-native
         run: |
@@ -52,6 +54,11 @@ jobs:
             -configuration Debug -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/epicenter-derived" \
             CODE_SIGNING_ALLOWED=NO build | tee "$RUNNER_TEMP/native-build.log"
+      - name: Verify installed app version marker
+        run: |
+          app_plist="$RUNNER_TEMP/epicenter-derived/Build/Products/Debug-iphonesimulator/EpicenterDSP.app/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app_plist")" = '4.0'
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app_plist")" = '2'
       - name: Build log
         if: failure()
         uses: actions/upload-artifact@v4

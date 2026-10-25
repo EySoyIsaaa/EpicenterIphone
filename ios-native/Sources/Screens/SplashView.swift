@@ -139,7 +139,8 @@ private final class BassImpactView: UIView {
         }
 
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "4.0"
-        addText("v\(version)", y: bounds.height - 102, size: 11, opacity: 1)
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+        addText("v\(version) (\(build))", y: bounds.height - 102, size: 11, opacity: 1)
         addText("BASS RECONSTRUCTION TECHNOLOGY", y: bounds.height - 72, size: 10, opacity: 0.5)
     }
 

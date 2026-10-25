@@ -1,160 +1,57 @@
-EPICENTER APP - PREPARAR UNA MAC NUEVA Y ABRIR EN XCODE
-========================================================
+EPICENTER DSP - APP NATIVA SWIFTUI
+=================================
 
-IMPORTANTE
-----------
-- Instala primero Xcode estable desde la App Store.
-- Abre Xcode una vez y deja que termine de instalar sus componentes.
-- Copia estos comandos por bloques, respetando el orden.
-- No ejecutes "build.sh": ese archivo es solamente para Android.
-- No ejecutes "cap add ios": la carpeta iOS ya existe.
-- Abre siempre App.xcworkspace, nunca App.xcodeproj.
+La app actual esta en ios-native y en la rama feat/native-ui.
+Los ocho ajustes de cola, Hall, Car Audio, inicio y automaticos se agregaron
+en el commit f9afc46. El commit 7672833 es anterior a esos cambios.
+Esta actualizacion identifica la app como version 4.0 (2) en Ajustes.
 
-
-1. PREPARAR XCODE
------------------
-
-sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
-sudo xcodebuild -license accept
-sudo xcodebuild -runFirstLaunch
-
-
-2. INSTALAR HOMEBREW
---------------------
-
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-
-3. ACTIVAR HOMEBREW EN UNA MAC CON APPLE SILICON
--------------------------------------------------
-
-Ejecuta estas dos líneas después de que termine la instalación de Homebrew:
-
-echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.zprofile"
-eval "$(/opt/homebrew/bin/brew shellenv)"
-
-Si el instalador de Homebrew muestra instrucciones diferentes, utiliza las
-instrucciones que aparezcan en tu Terminal.
-
-
-4. INSTALAR NODE.JS 24 Y COCOAPODS
-----------------------------------
-
-brew install node@24 cocoapods
-
-export PATH="$(brew --prefix node@24)/bin:$PATH"
-echo "export PATH=\"$(brew --prefix node@24)/bin:\$PATH\"" >> "$HOME/.zshrc"
-
-
-5. INSTALAR LA VERSIÓN CORRECTA DE PNPM
+ACTUALIZAR UNA COPIA EXISTENTE EN LA MAC
 ---------------------------------------
+Ejecuta desde la carpeta raiz del repositorio:
 
-npm install --global pnpm@10.4.1
+git switch feat/native-ui
+git pull --ff-only
+git log -1 --oneline
+bash ABRIR_APP_NATIVA.command
 
+El comando verifica que el codigo incluya los arreglos, regenera el proyecto
+y abre la ruta absoluta de ios-native/EpicenterDSP.xcodeproj.
 
-6. COMPROBAR LAS INSTALACIONES
-------------------------------
-
-xcodebuild -version
-node --version
-pnpm --version
-pod --version
-
-Resultados esperados:
-- Node: v24.x
-- pnpm: 10.4.1
-- CocoaPods: 1.16.2 o una versión posterior compatible
-
-
-7. OBTENER EL PROYECTO DESDE GITHUB (MÉTODO RECOMENDADO)
---------------------------------------------------------
-
-cd "$HOME/Desktop"
-git clone https://github.com/EySoyIsaaa/EpicenterIphone.git
-cd EpicenterIphone
-
-
-8. INSTALAR LAS DEPENDENCIAS DEL PROYECTO
------------------------------------------
-
-Si descargaste el proyecto con git clone:
-
-pnpm install --frozen-lockfile
-
-Si en vez de clonarlo copiaste toda la carpeta directamente desde Windows,
-entra primero a su ubicación:
-
-cd "/Users/TU_USUARIO/Desktop/IOS APP EPICENTER"
-
-Después utiliza --force para regenerar node_modules y los binarios para macOS:
-
-pnpm install --force --frozen-lockfile
-
-
-9. COMPILAR Y SINCRONIZAR CAPACITOR CON IOS
--------------------------------------------
-
-pnpm build
-pnpm exec cap sync ios
-
-
-10. INSTALAR LOS PODS Y ABRIR XCODE
+PRIMERA INSTALACION EN UNA MAC NUEVA
 -----------------------------------
+1. Instala Xcode desde la App Store y abrelo para instalar sus componentes.
+2. En Xcode > Settings > Locations, selecciona Xcode en Command Line Tools.
+3. Si no tienes Homebrew, instalalo siguiendo https://brew.sh/.
+4. Instala XcodeGen:
 
-cd ios/App
-pod install
-open App.xcworkspace
+brew install xcodegen
 
+5. Clona la rama de la app nativa y abrela:
 
-11. AJUSTES QUE DEBES HACER DENTRO DE XCODE
--------------------------------------------
+git clone --branch feat/native-ui https://github.com/EySoyIsaaa/EpicenterIphone.git
+cd EpicenterIphone
+bash ABRIR_APP_NATIVA.command
 
-Antes de compilar:
+EN XCODE
+---------
+1. Esquema: EpicenterDSP. Destino: tu iPhone o un simulador.
+2. Target EpicenterDSP > Signing & Capabilities: selecciona tu Team.
+3. Para forzar una recompilacion completa: Shift + Command + K.
+4. Ejecuta con Command + R.
+5. En la app: Musica > Ajustes > Acerca de debe mostrar 4.0 (2).
+6. En Epicenter y EQ, Ajuste automatico debe ser la primera tarjeta.
+   En la cola, Reproduciendo ahora debe quedar fijo sobre A continuacion.
 
-1. Selecciona el proyecto "App".
-2. Selecciona el target "App".
-3. En General o Build Settings, confirma que iOS Deployment Target sea 15.6.
-4. Verifícalo para Debug y Release.
+Para este proyecto SwiftUI no hacen falta pnpm, Node, Capacitor ni CocoaPods.
+El flujo pnpm build / cap sync / ios/App/App.xcworkspace abre el proyecto web.
+Sus instrucciones historicas estan en:
+docs/migration/COMANDOS_MAC_CAPACITOR_LEGADO.txt
 
-Para ejecutar en un iPhone físico:
+SI QUIERES ABRIRLO MANUALMENTE
+------------------------------
+Desde la carpeta raiz del repositorio:
 
-1. Abre Signing & Capabilities.
-2. Inicia sesión con tu Apple Account en Xcode.
-3. Selecciona tu Team.
-4. Activa Automatically manage signing.
-5. Si "com.epicenter.hifi" no pertenece a tu cuenta, utiliza un Bundle
-   Identifier único.
-
-
-COMANDOS PARA USO DIARIO DESPUÉS DE MODIFICAR LA APP
-----------------------------------------------------
-
-Desde la carpeta raíz del proyecto:
-
-pnpm build
-pnpm exec cap sync ios
-open ios/App/App.xcworkspace
-
-
-SI POD INSTALL REPORTA UNA RUTA DE PNPM INEXISTENTE
----------------------------------------------------
-
-Vuelve a la raíz del proyecto. Si lo clonaste desde GitHub:
-
-cd "$HOME/Desktop/EpicenterIphone"
-pnpm install --frozen-lockfile
-pnpm build
-pnpm exec cap sync ios
-cd ios/App
-pod install
-open App.xcworkspace
-
-Si copiaste la carpeta desde Windows, usa su ruta real y agrega --force:
-
-cd "/Users/TU_USUARIO/Desktop/IOS APP EPICENTER"
-pnpm install --force --frozen-lockfile
-pnpm build
-pnpm exec cap sync ios
-cd ios/App
-pod install
-open App.xcworkspace
+cd ios-native
+xcodegen generate
+open EpicenterDSP.xcodeproj

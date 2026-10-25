@@ -1,5 +1,28 @@
 # EpicenterDSP Player para iOS
 
+## Abrir la app actual: SwiftUI
+
+La app que se está actualizando está en `ios-native`, rama `feat/native-ui`.
+Desde la raíz del repositorio en la Mac:
+
+```bash
+git switch feat/native-ui
+git pull --ff-only
+bash ABRIR_APP_NATIVA.command
+```
+
+Instala `xcodegen` con `brew install xcodegen` si el comando lo solicita.
+El proyecto correcto es `ios-native/EpicenterDSP.xcodeproj`. La build actual muestra
+`4.0 (2)` en Música → Ajustes → Acerca de.
+
+Consulta [COMANDOS_MAC_XCODE.txt](COMANDOS_MAC_XCODE.txt) para la instalación completa
+y [la documentación de SwiftUI](ios-native/README.md) para los detalles del proyecto.
+
+## Referencia de la versión anterior: React/Capacitor
+
+Las secciones siguientes describen el proyecto anterior en `ios/App`.
+Ese flujo abre la interfaz web y no es el arranque de la app SwiftUI actual.
+
 Reproductor local de música para iPhone y iPad con una interfaz React y un
 motor de audio completamente nativo en iOS. La aplicación conserva la
 portabilidad de Capacitor para la interfaz, pero la reproducción, biblioteca,

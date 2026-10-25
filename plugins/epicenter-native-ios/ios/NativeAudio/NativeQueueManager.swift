@@ -70,6 +70,42 @@ final class NativeQueueManager {
         repeatMode = mode
     }
 
+    /// Explicit queue actions relocate an existing song instead of silently ignoring
+    /// it. Keep history for Previous/Repeat, but never move the playing entry.
+    func enqueue(_ requestedIds: [String], playNext: Bool) {
+        let playingId = currentTrackId
+        var seen = Set<String>()
+        let insertions = requestedIds.filter {
+            !$0.isEmpty && $0 != playingId && seen.insert($0).inserted
+        }
+        guard !insertions.isEmpty else { return }
+        let relocating = Set(insertions)
+        var updated = trackIds.filter { !relocating.contains($0) }
+        let playingIndex = playingId.flatMap { updated.firstIndex(of: $0) }
+        let insertionIndex = playNext ? (playingIndex.map { $0 + 1 } ?? 0) : updated.count
+        updated.insert(contentsOf: insertions, at: insertionIndex)
+        setQueue(trackIds: updated, startIndex: playingIndex ?? 0)
+    }
+
+    /// Only future entries are editable. A stale sheet must not reinsert history
+    /// after native auto-next has advanced while the user was dragging a row.
+    func reorderUpcoming(_ requestedOrder: [String]) {
+        guard trackIds.indices.contains(currentIndex) else { return }
+        let historyAndCurrent = Array(trackIds.prefix(currentIndex + 1))
+        let upcoming = Array(trackIds.dropFirst(currentIndex + 1))
+        let allowed = Set(upcoming)
+        var seen = Set<String>()
+        let ordered = requestedOrder.filter { allowed.contains($0) && seen.insert($0).inserted }
+        trackIds = historyAndCurrent + ordered + upcoming.filter { !seen.contains($0) }
+    }
+
+    func removeUpcoming(_ requestedIds: [String]) {
+        guard trackIds.indices.contains(currentIndex) else { return }
+        let removals = Set(requestedIds)
+        trackIds = Array(trackIds.prefix(currentIndex + 1))
+            + trackIds.dropFirst(currentIndex + 1).filter { !removals.contains($0) }
+    }
+
     /// Ordered candidate indices after the current item. With wrapping enabled,
     /// the search continues at the beginning; a one-item queue returns itself.
     func nextCandidateIndices(wrapping: Bool) -> [Int] {

@@ -141,6 +141,15 @@ final class AudioService: ObservableObject {
     /// Canciones de la cola actual, resueltas a modelos (puede omitir ids no encontrados).
     func queueTracks() -> [NativeTrack] { queueTrackIds.compactMap { repository.findTrack(id: $0) } }
 
+    var queuedCurrentId: String? {
+        queueTrackIds.indices.contains(queueIndex) ? queueTrackIds[queueIndex] : currentTrackId
+    }
+
+    var upcomingTrackIds: [String] {
+        guard queueTrackIds.indices.contains(queueIndex) else { return [] }
+        return Array(queueTrackIds.dropFirst(queueIndex + 1))
+    }
+
     /// Sincroniza `queueTrackIds`/`queueIndex` desde el estado real del motor.
     func refreshQueue() {
         let state = playback.getPlaybackState()
@@ -153,13 +162,16 @@ final class AudioService: ObservableObject {
     func playQueueTrack(id: String) { _ = playback.play(trackId: id) }
 
     func moveQueue(from source: IndexSet, to destination: Int) {
-        var ids = queueTrackIds
+        var ids = upcomingTrackIds
+        guard source.allSatisfy({ ids.indices.contains($0) }),
+              destination >= 0, destination <= ids.count else { return }
         ids.move(fromOffsets: source, toOffset: destination)
-        setQueueOrder(ids)
+        apply(event: "queueChanged", data: playback.reorderUpcomingTracks(ids))
     }
 
     func removeQueue(at offsets: IndexSet) {
-        let ids = offsets.compactMap { queueTrackIds.indices.contains($0) ? queueTrackIds[$0] : nil }
+        let upcoming = upcomingTrackIds
+        let ids = offsets.compactMap { upcoming.indices.contains($0) ? upcoming[$0] : nil }
         removeFromQueue(ids: ids)
     }
 
@@ -167,37 +179,19 @@ final class AudioService: ObservableObject {
     func addToQueue(_ ids: [String]) {
         let live = liveQueue()
         guard !live.ids.isEmpty else { play(ids.compactMap { track(id: $0) }, startAt: 0); return }
-        let existing = Set(live.ids)
-        setQueueOrder(live.ids + ids.filter { !existing.contains($0) })
+        apply(event: "queueChanged", data: playback.enqueueTracks(ids, playNext: false))
     }
 
     /// Inserta justo después de la canción actual.
     func playNext(_ ids: [String]) {
         let live = liveQueue()
         guard !live.ids.isEmpty else { play(ids.compactMap { track(id: $0) }, startAt: 0); return }
-        var newIds = live.ids
-        let existing = Set(newIds)
-        let toInsert = ids.filter { !existing.contains($0) }
-        newIds.insert(contentsOf: toInsert, at: min(live.index + 1, newIds.count))
-        setQueueOrder(newIds)
+        apply(event: "queueChanged", data: playback.enqueueTracks(ids, playNext: true))
     }
 
     /// Quita canciones de la cola (nunca la que suena ahora).
     func removeFromQueue(ids: [String]) {
-        let live = liveQueue()
-        let currentId = live.ids.indices.contains(live.index) ? live.ids[live.index] : nil
-        let removeSet = Set(ids).subtracting(currentId.map { [$0] } ?? [])
-        guard !removeSet.isEmpty else { return }
-        setQueueOrder(live.ids.filter { !removeSet.contains($0) })
-    }
-
-    /// Reinstala la cola conservando la pista que suena (sin reiniciar el audio).
-    private func setQueueOrder(_ newIds: [String]) {
-        let live = liveQueue()
-        let currentId = live.ids.indices.contains(live.index) ? live.ids[live.index] : nil
-        let start = currentId.flatMap { newIds.firstIndex(of: $0) } ?? 0
-        _ = playback.setQueue(trackIds: newIds, startIndex: start)
-        refreshQueue()
+        apply(event: "queueChanged", data: playback.removeUpcomingTracks(ids))
     }
 
     /// Lee la cola viva del motor (fuente de verdad para las mutaciones).
@@ -215,40 +209,51 @@ final class AudioService: ObservableObject {
         UserDefaults.standard.set(on ? "headphones" : "car", forKey: "epicenterMode")
         _ = playback.setEpicenterMode(headphones: on)
     }
-    func setIntensity(_ v: Double) { intensity = v; _ = playback.setEpicenterParams(intensity: v, sweepFreq: nil, width: nil, balance: nil, volume: nil) }
-    func setSweep(_ v: Double) { sweepFreq = v; _ = playback.setEpicenterParams(intensity: nil, sweepFreq: v, width: nil, balance: nil, volume: nil) }
-    func setWidth(_ v: Double) { width = v; _ = playback.setEpicenterParams(intensity: nil, sweepFreq: nil, width: v, balance: nil, volume: nil) }
-    func setBalance(_ v: Double) { balance = v; _ = playback.setEpicenterParams(intensity: nil, sweepFreq: nil, width: nil, balance: v, volume: nil) }
-    func setVolume(_ v: Double) { volume = v; _ = playback.setEpicenterParams(intensity: nil, sweepFreq: nil, width: nil, balance: nil, volume: v) }
+    func setIntensity(_ v: Double) { useManualEpicenter(); intensity = v; _ = playback.setEpicenterParams(intensity: v, sweepFreq: nil, width: nil, balance: nil, volume: nil) }
+    func setSweep(_ v: Double) { useManualEpicenter(); sweepFreq = v; _ = playback.setEpicenterParams(intensity: nil, sweepFreq: v, width: nil, balance: nil, volume: nil) }
+    func setWidth(_ v: Double) { useManualEpicenter(); width = v; _ = playback.setEpicenterParams(intensity: nil, sweepFreq: nil, width: v, balance: nil, volume: nil) }
+    func setBalance(_ v: Double) { useManualEpicenter(); balance = v; _ = playback.setEpicenterParams(intensity: nil, sweepFreq: nil, width: nil, balance: v, volume: nil) }
+    func setVolume(_ v: Double) { useManualEpicenter(); volume = v; _ = playback.setEpicenterParams(intensity: nil, sweepFreq: nil, width: nil, balance: nil, volume: v) }
+
+    private func useManualEpicenter() {
+        if autoEpicenterEnabled { setAutoEpicenterEnabled(false) }
+    }
 
     // MARK: EQ
 
     func setEqEnabled(_ on: Bool) { eqEnabled = on; _ = playback.setEqEnabled(on) }
     func setEqBand(_ index: Int, _ gain: Double) {
         guard eqBands.indices.contains(index) else { return }
+        if autoEqEnabled { setAutoEqEnabled(false) }
         eqBands[index] = gain
         _ = playback.setEqBand(index: index, gain: gain)
     }
-    func resetEq() { eqBands = Array(repeating: 0, count: 31); _ = playback.resetEq() }
+    func resetEq() {
+        if autoEqEnabled { setAutoEqEnabled(false) }
+        eqBands = Array(repeating: 0, count: 31)
+        _ = playback.resetEq()
+    }
     /// Auto-EQ (pantalla Ecualizador): analiza cada canción y ajusta la curva. Independiente
     /// del ajuste automático de Epicenter. Nunca enciende el ecualizador por su cuenta.
     func setAutoEqEnabled(_ on: Bool) {
         autoEqEnabled = on
         UserDefaults.standard.set(on, forKey: "autoEqEnabled")
-        updateEngineAuto()
+        _ = playback.setAutoEqEnabled(on)
+        apply(event: "playbackStateChanged", data: playback.getPlaybackState())
     }
 
     /// Ajuste automático (pantalla Epicenter): independiente del Auto-EQ del ecualizador.
     func setAutoEpicenterEnabled(_ on: Bool) {
         autoEpicenterEnabled = on
         UserDefaults.standard.set(on, forKey: "autoEpicenterEnabled")
-        updateEngineAuto()
+        _ = playback.setAutoEpicenterEnabled(on)
+        apply(event: "playbackStateChanged", data: playback.getPlaybackState())
     }
 
-    /// El analizador por canción del motor corre si cualquiera de los dos automáticos está activo.
-    /// El motor solo ajusta valores; no activa ecualizador ni efectos por su cuenta.
+    /// Both switches share only the measured spectrum, never their processor controls.
     private func updateEngineAuto() {
-        _ = playback.setAutoEqEnabled(autoEqEnabled || autoEpicenterEnabled)
+        _ = playback.setAutoEqEnabled(autoEqEnabled)
+        _ = playback.setAutoEpicenterEnabled(autoEpicenterEnabled)
     }
 
     // MARK: Effects
@@ -312,7 +317,7 @@ final class AudioService: ObservableObject {
         if let value = data["currentTime"] as? Double { currentTime = value }
         if let value = data["duration"] as? Double { duration = value }
         if let id = data["currentTrackId"] as? String { currentTrackId = id }
-        if let track = data["currentTrack"] as? [String: Any] {
+        if let track = (data["currentTrack"] ?? data["track"]) as? [String: Any] {
             title = track["title"] as? String ?? "—"
             artist = track["artist"] as? String ?? ""
             artworkPath = track["albumArtUri"] as? String
@@ -321,6 +326,33 @@ final class AudioService: ObservableObject {
         if let queue = data["queue"] as? [String: Any] {
             if let ids = queue["trackIds"] as? [String] { queueTrackIds = ids }
             if let idx = queue["currentIndex"] as? Int { queueIndex = idx }
+            if let mode = queue["repeatMode"] as? String, let repeatValue = RepeatMode(rawValue: mode) { repeatMode = repeatValue }
+        }
+        // The native engine is also the source of truth for automatic changes.
+        // Publish these values so the 31 faders and response curve move together.
+        if let eq = data["eq"] as? [String: Any] {
+            if let enabled = eq["enabled"] as? Bool { eqEnabled = enabled }
+            if let bands = eq["bands"] as? [Double], bands.count == 31, bands != eqBands {
+                eqBands = bands
+            }
+        }
+        if event == "autoEqApplied", let gains = data["gains"] as? [Double], gains.count == 31 {
+            eqBands = gains
+        }
+        if let epicenter = data["epicenter"] as? [String: Any] {
+            if let enabled = epicenter["enabled"] as? Bool { epicenterEnabled = enabled }
+            if let mode = epicenter["mode"] as? String { headphonesMode = mode == "headphones" }
+            intensity = num(epicenter["intensity"], intensity)
+            sweepFreq = num(epicenter["sweepFreq"], sweepFreq)
+            width = num(epicenter["width"], width)
+            balance = num(epicenter["balance"], balance)
+            volume = num(epicenter["volume"], volume)
+        }
+        if let effects = data["fx"] as? [String: Any] {
+            if let enabled = effects["reverbEnabled"] as? Bool { reverbEnabled = enabled }
+            if let enabled = effects["concertHallEnabled"] as? Bool { concertHallEnabled = enabled }
+            reverbAmount = num(effects["reverbAmount"], reverbAmount)
+            concertHallAmount = num(effects["concertHallAmount"], concertHallAmount)
         }
         if let id = currentTrackId, id != previousTrackId {
             LibraryStore.shared.recordPlayed(id)

@@ -13,6 +13,7 @@ struct DspScreen: View {
                 BrandBackground()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        autoEpicenterCard
                         header
                         modeSwitch
                         Text(modeHint).font(.footnote).foregroundStyle(Theme.textMuted)
@@ -25,8 +26,6 @@ struct DspScreen: View {
                                    "In Headphones mode the engine is tuned with Intensity only. Sweep, Width and Balance belong to the Car Audio engine."))
                                 .font(.caption).foregroundStyle(Theme.textMuted)
                         }
-
-                        autoEpicenterCard
                     }
                     .padding([.horizontal, .top])
                     .padding(.bottom, 96)
@@ -148,20 +147,10 @@ struct DspScreen: View {
     }
 
     private var autoEpicenterCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle(isOn: Binding(get: { audio.autoEpicenterEnabled }, set: { audio.setAutoEpicenterEnabled($0) })) {
-                HStack(spacing: 8) {
-                    Image(systemName: "wand.and.stars").foregroundStyle(Theme.red)
-                    Text(L("Ajuste automático", "Auto adjust")).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.textPrimary)
-                }
-            }
-            .tint(Theme.red)
-            Text(L("Analiza cada canción para reforzar el bajo. Solo actúa con Epicenter activo — no lo enciende por su cuenta. Independiente del Auto-EQ del ecualizador.",
-                   "Analyzes each song to reinforce the bass. Only acts when Epicenter is on — it won't turn it on by itself. Independent from the equalizer's Auto-EQ."))
-                .font(.caption).foregroundStyle(Theme.textMuted)
-        }
-        .padding()
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.red.opacity(0.3), lineWidth: 1))
+        AutoAdjustmentCard(
+            description: L("Adapta Epicenter a cada canción en Car Audio y Audífonos. Solo se aplica con el motor activo y no modifica el ecualizador.",
+                           "Adapts Epicenter to each song in Car Audio and Headphones. Applies only while the engine is on and leaves the equalizer unchanged."),
+            isOn: Binding(get: { audio.autoEpicenterEnabled }, set: { audio.setAutoEpicenterEnabled($0) })
+        )
     }
 }

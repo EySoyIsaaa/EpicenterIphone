@@ -1,0 +1,60 @@
+name: Native iOS
+
+on:
+  push:
+    paths:
+      - 'ios-native/**'
+      - 'plugins/epicenter-native-ios/ios/**'
+      - '.github/workflows/native-ios.yml'
+  pull_request:
+    paths:
+      - 'ios-native/**'
+      - 'plugins/epicenter-native-ios/ios/**'
+      - '.github/workflows/native-ios.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Native regressions and simulator build
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Native queue, tuning and Hi-Res analysis regressions
+        run: |
+          swiftc -swift-version 5 \
+            plugins/epicenter-native-ios/ios/NativeAudio/NativeQueueManager.swift \
+            plugins/epicenter-native-ios/ios/NativeAudio/NativeAutoAdjustment.swift \
+            plugins/epicenter-native-ios/ios/NativeAudio/EpicenterAutoEQAnalyzer.swift \
+            ios-native/Tests/NativeRegressionChecks.swift \
+            -o "$RUNNER_TEMP/native-regressions"
+          "$RUNNER_TEMP/native-regressions"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: DSP silence, bypass and sample-rate regressions
+        run: |
+          clang++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            -I plugins/epicenter-native-ios/ios/DSP \
+            plugins/epicenter-native-ios/ios/DSP/EpicenterDSPCore.cpp \
+            ios-native/Tests/DSPRegressionChecks.cpp -o "$RUNNER_TEMP/dsp-regressions"
+          "$RUNNER_TEMP/dsp-regressions"
+      - name: Generate native project
+        working-directory: ios-native
+        run: xcodegen generate
+      - name: Compile SwiftUI app for iOS Simulator
+        working-directory: ios-native
+        run: |
+          set -o pipefail
+          xcodebuild -project EpicenterDSP.xcodeproj -scheme EpicenterDSP \
+            -configuration Debug -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/epicenter-derived" \
+            CODE_SIGNING_ALLOWED=NO build | tee "$RUNNER_TEMP/native-build.log"
+      - name: Build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-build-log
+          path: ${{ runner.temp }}/native-build.log

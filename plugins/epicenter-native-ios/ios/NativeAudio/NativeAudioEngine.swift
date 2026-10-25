@@ -82,7 +82,8 @@ final class NativeAudioEngine {
     ]
     private static let eqGainRange: ClosedRange<Float> = -8...8
     private static let maxReverbReturnGain: Float = 0.42
-    private static let maxConcertHallReturnGain: Float = 0.50
+    // More audible hall tail without attenuating or reverberating the dry path.
+    private static let maxConcertHallReturnGain: Float = 0.75
     // Full-buffer playback is required by the custom Epicenter source-node DSP, but
     // decoding a long Hi-Res track to deinterleaved Float32 can consume hundreds of MB.
     // Above this conservative budget we use AVAudioPlayerNode file-segment playback so
@@ -154,6 +155,13 @@ final class NativeAudioEngine {
         }
         return (buffer, format.sampleRate, track.stableId)
     }
+
+    func analysisTrackSnapshot() -> (stableId: String, fileURL: URL)? {
+        guard let track = loadedTrack, let path = track.playbackUrl, !path.isEmpty else { return nil }
+        return (track.stableId, URL(fileURLWithPath: path))
+    }
+
+    var canApplyCustomEpicenter: Bool { !isFallbackPlayback && loadedTrack != nil }
 
     init() {
         engine.attach(eqNode)

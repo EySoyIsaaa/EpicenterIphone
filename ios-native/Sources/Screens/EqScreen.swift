@@ -16,61 +16,62 @@ struct EqScreen: View {
         NavigationView {
             ZStack {
                 BrandBackground()
-                VStack(spacing: 14) {
-                    Toggle(isOn: Binding(get: { audio.eqEnabled }, set: { audio.setEqEnabled($0) })) {
-                        Text(L("Ecualizador activo", "Equalizer on")).font(.subheadline).foregroundStyle(Theme.textPrimary)
-                    }
-                    .tint(Theme.red)
-                    .padding(.horizontal)
-
-                    // Curva de respuesta (como el web).
-                    VStack(spacing: 6) {
-                        HStack {
-                            Text(L("RESPUESTA", "RESPONSE")).font(.system(size: 10, weight: .black)).kerning(1.5)
-                            Spacer()
-                            Text(audio.eqEnabled ? "Live" : "Bypass").font(.system(size: 10, weight: .black)).kerning(1.5)
+                ScrollView(.vertical) {
+                    VStack(spacing: 14) {
+                        autoEqBanner.padding(.horizontal)
+                        Toggle(isOn: Binding(get: { audio.eqEnabled }, set: { audio.setEqEnabled($0) })) {
+                            Text(L("Ecualizador activo", "Equalizer on")).font(.subheadline).foregroundStyle(Theme.textPrimary)
                         }
-                        .foregroundStyle(Theme.textMuted)
-                        EQCurve(gains: audio.eqBands, range: EqScreen.range, enabled: audio.eqEnabled)
-                            .frame(height: 96)
-                    }
-                    .padding(12)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
-                    .padding(.horizontal)
-
-                    autoEqBanner.padding(.horizontal)
-
-                    HStack {
-                        Text("+8 dB"); Spacer(); Text("0"); Spacer(); Text("-8 dB")
-                    }
-                    .font(.system(size: 10).monospacedDigit())
-                    .foregroundStyle(Theme.textMuted)
-                    .padding(.horizontal)
-
-                    // Faders verticales (scroll horizontal).
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(alignment: .top, spacing: 14) {
-                            ForEach(0..<31, id: \.self) { i in
-                                VerticalFader(
-                                    label: freqLabel(EqScreen.freqs[i]),
-                                    value: audio.eqBands[i],
-                                    range: EqScreen.range,
-                                    enabled: audio.eqEnabled
-                                ) { audio.setEqBand(i, $0) }
-                            }
-                        }
+                        .tint(Theme.red)
                         .padding(.horizontal)
-                        .padding(.vertical, 6)
+
+                        // Curva de respuesta (como el web).
+                        VStack(spacing: 6) {
+                            HStack {
+                                Text(L("RESPUESTA", "RESPONSE")).font(.system(size: 10, weight: .black)).kerning(1.5)
+                                Spacer()
+                                Text(audio.eqEnabled ? "Live" : "Bypass").font(.system(size: 10, weight: .black)).kerning(1.5)
+                            }
+                            .foregroundStyle(Theme.textMuted)
+                            EQCurve(gains: audio.eqBands, range: EqScreen.range, enabled: audio.eqEnabled)
+                                .frame(height: 96)
+                        }
+                        .padding(12)
+                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
+                        .padding(.horizontal)
+
+                        HStack {
+                            Text("+8 dB"); Spacer(); Text("0"); Spacer(); Text("-8 dB")
+                        }
+                        .font(.system(size: 10).monospacedDigit())
+                        .foregroundStyle(Theme.textMuted)
+                        .padding(.horizontal)
+
+                        // Faders verticales (scroll horizontal).
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: 14) {
+                                ForEach(0..<31, id: \.self) { i in
+                                    VerticalFader(
+                                        label: freqLabel(EqScreen.freqs[i]),
+                                        value: audio.eqBands[i],
+                                        range: EqScreen.range,
+                                        enabled: audio.eqEnabled
+                                    ) { audio.setEqBand(i, $0) }
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 6)
+                        }
+                        .opacity(audio.eqEnabled ? 1 : 0.5)
+
+                        Button(L("Restablecer", "Reset")) { audio.resetEq() }
+                            .foregroundStyle(Theme.textSecondary)
+
+                        Spacer(minLength: 0)
                     }
-                    .opacity(audio.eqEnabled ? 1 : 0.5)
-
-                    Button(L("Restablecer", "Reset")) { audio.resetEq() }
-                        .foregroundStyle(Theme.textSecondary)
-
-                    Spacer(minLength: 0)
+                    .padding(.top, 8)
+                    .padding(.bottom, 96)   // deja libre la barra + mini-reproductor
                 }
-                .padding(.top, 8)
-                .padding(.bottom, 96)   // deja libre la barra + mini-reproductor
             }
             .navigationTitle(L("Ecualizador", "Equalizer"))
         }
@@ -78,23 +79,11 @@ struct EqScreen: View {
     }
 
     private var autoEqBanner: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "wand.and.stars").foregroundStyle(Theme.red)
-                Text(L("Ajuste automático del ecualizador", "Automatic equalizer adjustment"))
-                    .font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.textPrimary)
-                Spacer()
-                Toggle("", isOn: Binding(get: { audio.autoEqEnabled }, set: { audio.setAutoEqEnabled($0) }))
-                    .labelsHidden()
-                    .tint(Theme.red)
-            }
-            Text(L("Analiza cada canción y ajusta el ecualizador automáticamente. Solo suena cuando el ecualizador está activo — no lo enciende por su cuenta.",
-                   "Analyzes each song and adjusts the equalizer automatically. It only sounds when the equalizer is on — it won't turn it on by itself."))
-                .font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
-        }
-        .padding(12)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.red.opacity(0.35), lineWidth: 1))
+        AutoAdjustmentCard(
+            description: L("Ajusta las 31 bandas y muestra la curva de cada canción. Requiere el ecualizador activo; al apagarlo recuperas tu ajuste manual.",
+                           "Adjusts all 31 bands and displays each song's curve. Requires the equalizer to be on; turning auto off restores your manual settings."),
+            isOn: Binding(get: { audio.autoEqEnabled }, set: { audio.setAutoEqEnabled($0) })
+        )
     }
 
     private func freqLabel(_ f: Double) -> String {

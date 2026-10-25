@@ -1,174 +1,197 @@
 import SwiftUI
 import UIKit
+import QuartzCore
 
-/// Apertura "Bass Impact" — réplica nativa del SplashScreen del web:
-/// anillos que pulsan, bloom rojo, logo con entrada tipo resorte, barrido, espectro y footer.
-/// Dura ~3.6 s (con salida) y se puede saltar con un toque.
+/// Bass Impact rendered by Core Animation at a preferred 60 fps. The layers are
+/// built once; the render server animates transforms/opacity without per-frame
+/// SwiftUI layout, independent state updates, or animated full-screen blur.
 struct SplashView: View {
     let onFinish: () -> Void
 
-    @State private var leaving = false
-    @State private var logoIn = false
-    @State private var sweepScale: CGFloat = 0
-    @State private var sweepOpacity: Double = 0
-    @State private var footerIn = false
-
-    private var stage: CGFloat { min(UIScreen.main.bounds.width * 0.62, 280) }
-
-    private var version: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-    }
-
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-
-            VStack(spacing: 30) {
-                ZStack {
-                    PulseRing(delay: 0.20, stage: stage)
-                    PulseRing(delay: 0.43, stage: stage)
-                    PulseRing(delay: 0.66, stage: stage)
-                    Bloom(stage: stage)
-
-                    Image("EpicenterLogo")
-                        .resizable().scaledToFit()
-                        .frame(width: stage * 0.68)
-                        .scaleEffect(logoIn ? 1 : 0.62)
-                        .opacity(logoIn ? 1 : 0)
-                        .blur(radius: logoIn ? 0 : 10)
-                        .shadow(color: Theme.red.opacity(0.35), radius: 22, y: 12)
-
-                    Capsule()
-                        .fill(LinearGradient(colors: [.clear, Theme.red, .clear], startPoint: .leading, endPoint: .trailing))
-                        .frame(width: stage * 0.88, height: 2)
-                        .scaleEffect(x: sweepScale, y: 1, anchor: .center)
-                        .opacity(sweepOpacity)
-                        .offset(y: stage * 0.30)
-                }
-                .frame(width: stage, height: stage)
-
-                HStack(alignment: .bottom, spacing: 3) {
-                    ForEach(0..<28, id: \.self) { i in SpectrumBar(index: i) }
-                }
-                .frame(height: 34)
-            }
-
-            VStack {
-                Spacer()
-                footer.padding(.bottom, 46)
-            }
-        }
-        .opacity(leaving ? 0 : 1)
-        .scaleEffect(leaving ? 1.08 : 1)
-        .blur(radius: leaving ? 12 : 0)
-        .contentShape(Rectangle())
-        .onTapGesture { finish() }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                withAnimation(.spring(response: 0.7, dampingFraction: 0.62)) { logoIn = true }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                withAnimation(.easeOut(duration: 0.45)) { sweepScale = 1.02; sweepOpacity = 1 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                    withAnimation(.easeIn(duration: 0.85)) { sweepOpacity = 0 }
-                }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                withAnimation(.easeOut(duration: 0.7)) { footerIn = true }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.08) { finish() }
-        }
-    }
-
-    private var footer: some View {
-        VStack(spacing: 10) {
-            Text("v\(version)")
-                .font(.system(size: 11, weight: .semibold))
-                .padding(.horizontal, 12).padding(.vertical, 3)
-                .foregroundStyle(.white)
-                .background(Theme.red.opacity(0.08), in: Capsule())
-                .overlay(Capsule().stroke(Theme.red.opacity(0.4), lineWidth: 1))
-            Text("BASS RECONSTRUCTION TECHNOLOGY")
-                .font(.system(size: 10, weight: .bold)).kerning(2.8)
-                .foregroundStyle(.white.opacity(0.42))
-        }
-        .opacity(footerIn ? 1 : 0)
-        .offset(y: footerIn ? 0 : 14)
-    }
-
-    private func finish() {
-        guard !leaving else { return }
-        withAnimation(.easeIn(duration: 0.52)) { leaving = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.52) { onFinish() }
+        SplashAnimation(onFinish: onFinish).ignoresSafeArea()
     }
 }
 
-/// Anillo tipo radar: aparece pequeño, se expande y se desvanece.
-private struct PulseRing: View {
-    let delay: Double
-    let stage: CGFloat
-    @State private var scale: CGFloat = 0.12
-    @State private var opacity: Double = 0
+private struct SplashAnimation: UIViewRepresentable {
+    let onFinish: () -> Void
 
-    var body: some View {
-        Circle()
-            .strokeBorder(Theme.red.opacity(0.8), lineWidth: 2)
-            .frame(width: stage * 0.42, height: stage * 0.42)
-            .scaleEffect(scale)
-            .opacity(opacity)
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    withAnimation(.easeOut(duration: 1.9)) { scale = 2.9 }
-                    withAnimation(.easeOut(duration: 0.25)) { opacity = 0.9 }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                        withAnimation(.easeIn(duration: 1.65)) { opacity = 0 }
-                    }
-                }
-            }
+    func makeUIView(context: Context) -> BassImpactView {
+        let view = BassImpactView()
+        view.onFinish = onFinish
+        return view
+    }
+
+    func updateUIView(_ uiView: BassImpactView, context: Context) {
+        uiView.onFinish = onFinish
+    }
+
+    static func dismantleUIView(_ uiView: BassImpactView, coordinator: ()) {
+        uiView.stop()
     }
 }
 
-/// Resplandor rojo que entra y luego pulsa suavemente.
-private struct Bloom: View {
-    let stage: CGFloat
-    @State private var appear = false
-    @State private var pulse = false
+private final class BassImpactView: UIView {
+    var onFinish: (() -> Void)?
+    private let content = CALayer()
+    private var started = false
+    private var finishing = false
+    private var automaticFinish: DispatchWorkItem?
+    private var completion: DispatchWorkItem?
+    private let red = UIColor(red: 1, green: 0.063, blue: 0.165, alpha: 1)
 
-    var body: some View {
-        Circle()
-            .fill(RadialGradient(colors: [Theme.red.opacity(0.42), .clear], center: .center, startRadius: 0, endRadius: stage * 0.39))
-            .frame(width: stage * 0.78, height: stage * 0.78)
-            .blur(radius: 14)
-            .scaleEffect(appear ? (pulse ? 1.08 : 1.0) : 0.4)
-            .opacity(appear ? 1 : 0)
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation(.easeInOut(duration: 1.1)) { appear = true }
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-                    withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) { pulse = true }
-                }
-            }
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .black
+        layer.addSublayer(content)
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(finish)))
+        isAccessibilityElement = true
+        accessibilityLabel = L("Omitir animación de inicio", "Skip opening animation")
+        accessibilityTraits = .button
     }
-}
 
-/// Barra del espectro: sube a su pico y oscila.
-private struct SpectrumBar: View {
-    let index: Int
-    @State private var up = false
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    private var peak: CGFloat { 0.36 + CGFloat((index * 37) % 52) / 100.0 }
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard !started, bounds.width > 0, bounds.height > 0 else { return }
+        started = true
+        content.frame = bounds
+        buildLayers()
+        let work = DispatchWorkItem { [weak self] in self?.finish() }
+        automaticFinish = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.08, execute: work)
+    }
 
-    var body: some View {
-        Capsule()
-            .fill(LinearGradient(colors: [Theme.red, Theme.red.opacity(0.35)], startPoint: .top, endPoint: .bottom))
-            .frame(width: 3, height: max(3, 34 * (up ? peak : 0.08)))
-            .opacity(up ? 1 : 0)
-            .onAppear {
+    private func buildLayers() {
+        let stage = min(bounds.width * 0.62, 280)
+        let center = CGPoint(x: bounds.midX, y: bounds.midY - 30)
+        let reduceMotion = UIAccessibility.isReduceMotionEnabled
+
+        let bloom = CAGradientLayer()
+        bloom.type = .radial
+        bloom.colors = [red.withAlphaComponent(0.42).cgColor, UIColor.clear.cgColor]
+        bloom.startPoint = CGPoint(x: 0.5, y: 0.5)
+        bloom.endPoint = CGPoint(x: 1, y: 1)
+        bloom.bounds = CGRect(x: 0, y: 0, width: stage * 1.1, height: stage * 1.1)
+        bloom.position = center
+        content.addSublayer(bloom)
+
+        if !reduceMotion {
+            for delay in [0.20, 0.43, 0.66] {
+                let ring = CAShapeLayer()
+                let size = stage * 0.42
+                ring.bounds = CGRect(x: 0, y: 0, width: size, height: size)
+                ring.position = center
+                ring.path = UIBezierPath(ovalIn: ring.bounds.insetBy(dx: 1, dy: 1)).cgPath
+                ring.strokeColor = red.withAlphaComponent(0.8).cgColor
+                ring.fillColor = UIColor.clear.cgColor
+                ring.lineWidth = 2
+                ring.opacity = 0
+                content.addSublayer(ring)
+                animate(ring, keyPath: "transform.scale", values: [0.12, 2.9], duration: 1.9, delay: delay)
+                animate(ring, keyPath: "opacity", values: [0, 0.9, 0], times: [0, 0.13, 1], duration: 1.9, delay: delay)
+            }
+            animate(bloom, keyPath: "opacity", values: [0, 1], duration: 1.1, delay: 0.3)
+            animate(bloom, keyPath: "transform.scale", values: [0.4, 1.08], duration: 1.1, delay: 0.3)
+        }
+
+        let logo = CALayer()
+        logo.contents = UIImage(named: "EpicenterLogo")?.cgImage
+        logo.contentsGravity = .resizeAspect
+        logo.bounds = CGRect(x: 0, y: 0, width: stage * 0.68, height: stage * 0.68)
+        logo.position = center
+        content.addSublayer(logo)
+        if !reduceMotion {
+            animate(logo, keyPath: "opacity", values: [0, 1], duration: 0.45, delay: 0.4)
+            animate(logo, keyPath: "transform.scale", values: [0.62, 1.05, 1], times: [0, 0.7, 1], duration: 0.7, delay: 0.4)
+        }
+
+        if !reduceMotion {
+            let sweep = CAGradientLayer()
+            sweep.colors = [UIColor.clear.cgColor, red.cgColor, UIColor.clear.cgColor]
+            sweep.startPoint = CGPoint(x: 0, y: 0.5)
+            sweep.endPoint = CGPoint(x: 1, y: 0.5)
+            sweep.bounds = CGRect(x: 0, y: 0, width: stage * 0.88, height: 2)
+            sweep.position = CGPoint(x: center.x, y: center.y + stage * 0.30)
+            sweep.opacity = 0
+            content.addSublayer(sweep)
+            animate(sweep, keyPath: "transform.scale.x", values: [0, 1.02], duration: 0.45, delay: 1.2)
+            animate(sweep, keyPath: "opacity", values: [0, 1, 0], times: [0, 0.35, 1], duration: 1.3, delay: 1.2)
+        }
+
+        for index in 0..<28 {
+            let bar = CAGradientLayer()
+            bar.colors = [red.cgColor, red.withAlphaComponent(0.35).cgColor]
+            bar.bounds = CGRect(x: 0, y: 0, width: 3, height: 34)
+            bar.anchorPoint = CGPoint(x: 0.5, y: 1)
+            bar.position = CGPoint(x: center.x + CGFloat(index) * 6 - 81, y: center.y + stage / 2 + 64)
+            bar.cornerRadius = 1.5
+            content.addSublayer(bar)
+            let peak = 0.36 + Double((index * 37) % 52) / 100
+            if reduceMotion {
+                bar.transform = CATransform3DMakeScale(1, CGFloat(peak), 1)
+            } else {
                 let delay = 0.95 + Double(index % 7) * 0.04
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    withAnimation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true)) { up = true }
-                }
+                animate(bar, keyPath: "opacity", values: [0, 1], duration: 0.3, delay: delay)
+                animate(bar, keyPath: "transform.scale.y", values: [0.08, peak, 0.15], times: [0, 0.5, 1], duration: 1.3, delay: delay, repeats: true)
             }
+        }
+
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "4.0"
+        addText("v\(version)", y: bounds.height - 102, size: 11, opacity: 1)
+        addText("BASS RECONSTRUCTION TECHNOLOGY", y: bounds.height - 72, size: 10, opacity: 0.5)
+    }
+
+    private func addText(_ text: String, y: CGFloat, size: CGFloat, opacity: Float) {
+        let label = CATextLayer()
+        label.string = NSAttributedString(string: text, attributes: [
+            .font: UIFont.systemFont(ofSize: size, weight: .semibold),
+            .foregroundColor: UIColor.white,
+            .kern: size == 10 ? 2 : 0,
+        ])
+        label.contentsScale = UIScreen.main.scale
+        label.alignmentMode = .center
+        label.frame = CGRect(x: 12, y: y, width: bounds.width - 24, height: 24)
+        label.opacity = opacity
+        content.addSublayer(label)
+        if !UIAccessibility.isReduceMotionEnabled {
+            animate(label, keyPath: "opacity", values: [0, Double(opacity)], duration: 0.7, delay: 1)
+        }
+    }
+
+    private func animate(_ target: CALayer, keyPath: String, values: [Double], times: [Double]? = nil,
+                         duration: Double, delay: Double = 0, repeats: Bool = false) {
+        let animation = CAKeyframeAnimation(keyPath: keyPath)
+        animation.values = values.map { NSNumber(value: $0) }
+        animation.keyTimes = (times ?? [0, 1]).map { NSNumber(value: $0) }
+        animation.duration = duration
+        animation.beginTime = CACurrentMediaTime() + delay
+        animation.fillMode = .both
+        animation.isRemovedOnCompletion = false
+        animation.repeatCount = repeats ? .infinity : 0
+        animation.calculationMode = .linear
+        animation.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
+        target.add(animation, forKey: keyPath)
+    }
+
+    @objc private func finish() {
+        guard !finishing else { return }
+        finishing = true
+        automaticFinish?.cancel()
+        let duration = UIAccessibility.isReduceMotionEnabled ? 0.15 : 0.52
+        animate(content, keyPath: "opacity", values: [1, 0], duration: duration)
+        let work = DispatchWorkItem { [weak self] in self?.onFinish?() }
+        completion = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
+    }
+
+    override func accessibilityActivate() -> Bool { finish(); return true }
+
+    func stop() {
+        automaticFinish?.cancel()
+        completion?.cancel()
+        content.removeAllAnimations()
+        content.sublayers?.forEach { $0.removeAllAnimations() }
     }
 }

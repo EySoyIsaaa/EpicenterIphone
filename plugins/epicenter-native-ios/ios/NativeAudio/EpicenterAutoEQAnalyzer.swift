@@ -4,8 +4,8 @@ import Foundation
 
 /// Per-song Auto-EQ analyzer.
 ///
-/// Measures the long-term average spectrum of a fully decoded track (the buffer the engine
-/// already holds in RAM), then returns a bespoke 31-band correction curve that nudges *that*
+/// Measures a bounded set of windows across the track, then returns a bespoke 31-band
+/// correction curve that nudges *that*
 /// song toward a gentle "house" target curve. This is genuine per-song tonal correction, not
 /// a preset: the measured spectrum is unique to each track, so the resulting curve is too.
 ///
@@ -45,9 +45,9 @@ enum EpicenterAutoEQAnalyzer {
 
     /// Computes the 31-band Auto-EQ gains (dB) for a decoded buffer, or nil if the track is
     /// too short / unreadable. Safe to call off the audio thread: reads the buffer read-only.
-    static func computeGains(buffer: AVAudioPCMBuffer, sampleRate: Double) -> [Float]? {
+    static func computeGains(buffer: AVAudioPCMBuffer, sampleRate: Double, sampledWindowCount: Int? = nil) -> [Float]? {
         guard sampleRate > 0,
-              let measuredRawDb = averageSpectrumDb(buffer: buffer, sampleRate: sampleRate) else {
+              let measuredRawDb = averageSpectrumDb(buffer: buffer, sampleRate: sampleRate, sampledWindowCount: sampledWindowCount) else {
             return nil
         }
 
@@ -73,9 +73,33 @@ enum EpicenterAutoEQAnalyzer {
         return smoothed(gains)                                     // guard 4b: musical curve
     }
 
+    /// Opens its own decoder off the audio thread. Memory stays below 4 MB for a
+    /// stereo file, including streaming Hi-Res songs, without retaining playback PCM.
+    static func computeGains(fileURL: URL) -> [Float]? {
+        guard let file = try? AVAudioFile(forReading: fileURL, commonFormat: .pcmFormatFloat32, interleaved: false),
+              file.length >= AVAudioFramePosition(fftSize) else { return nil }
+        let windowCount = min(maxWindows, max(1, Int(file.length / AVAudioFramePosition(fftSize))))
+        guard let samples = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(windowCount * fftSize)),
+              let window = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(fftSize)),
+              let destination = samples.floatChannelData else { return nil }
+
+        for index in 0..<windowCount {
+            let fraction = windowCount > 1 ? Double(index) / Double(windowCount - 1) : 0
+            file.framePosition = AVAudioFramePosition(Double(file.length - AVAudioFramePosition(fftSize)) * fraction)
+            do { try file.read(into: window, frameCount: AVAudioFrameCount(fftSize)) }
+            catch { return nil }
+            guard window.frameLength == AVAudioFrameCount(fftSize), let source = window.floatChannelData else { return nil }
+            for channel in 0..<Int(file.processingFormat.channelCount) {
+                destination[channel].advanced(by: index * fftSize).update(from: source[channel], count: fftSize)
+            }
+        }
+        samples.frameLength = AVAudioFrameCount(windowCount * fftSize)
+        return computeGains(buffer: samples, sampleRate: file.processingFormat.sampleRate, sampledWindowCount: windowCount)
+    }
+
     // MARK: Spectrum measurement (vDSP)
 
-    private static func averageSpectrumDb(buffer: AVAudioPCMBuffer, sampleRate: Double) -> [Float]? {
+    private static func averageSpectrumDb(buffer: AVAudioPCMBuffer, sampleRate: Double, sampledWindowCount: Int?) -> [Float]? {
         let totalFrames = Int(buffer.frameLength)
         guard totalFrames >= fftSize,
               let channelData = buffer.floatChannelData else { return nil }
@@ -89,7 +113,7 @@ enum EpicenterAutoEQAnalyzer {
         var window = [Float](repeating: 0, count: fftSize)
         vDSP_hann_window(&window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
 
-        let windowCount = max(1, min(maxWindows, (totalFrames - fftSize) / (fftSize / 2) + 1))
+        let windowCount = sampledWindowCount ?? max(1, min(maxWindows, (totalFrames - fftSize) / (fftSize / 2) + 1))
         let stride = windowCount > 1 ? (totalFrames - fftSize) / (windowCount - 1) : 0
 
         var mono = [Float](repeating: 0, count: fftSize)

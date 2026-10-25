@@ -20,6 +20,7 @@ constexpr float DEEP_EXTENSION_SUBSONIC_HIGHPASS_HZ = 24.0f;
 constexpr float DEEP_EXTENSION_MIX_BASE = 0.32f;
 constexpr float DEEP_EXTENSION_MIX_VOICE = 0.42f;
 constexpr float FLIP_SLEW_MS = 1.5f;
+constexpr float MAX_GENERATED_SUB_GAIN = 1.33f;
 
 inline float clampf(float v, float lo, float hi) { return std::max(lo, std::min(v, hi)); }
 inline float denormalFloor(float v) { return (std::fabs(v) < DENORMAL_FLOOR || !std::isfinite(v)) ? 0.0f : v; }
@@ -250,6 +251,10 @@ void EpicenterDSPCore::processChunk(float* const* input, int channelCount, std::
     ensureState(channelCount, p.sweepFreq, p.width);
     const float intensityRawNorm = clampf(p.intensity, 0, 100) / 100.0f;
     const float intensityProgress = intensityRawNorm;
+    // Grow only the reconstructed bass: unchanged near zero, +33% at 100%.
+    // Keep the 1.5 ms polarity slew and downstream host limiter intact.
+    const float generatedSubGain = 1.0f + (MAX_GENERATED_SUB_GAIN - 1.0f)
+        * intensityRawNorm * intensityRawNorm;
     const float intensityScaledNorm = intensityProgress * EPICENTER_INTENSITY_MAX_SCALE;
     const float intensityNorm = intensityScaledNorm * EPICENTER_INTENSITY_HEADROOM;
     const float balanceNorm = clampf(p.balance, 0, 100) / 100.0f;
@@ -310,7 +315,7 @@ void EpicenterDSPCore::processChunk(float* const* input, int channelCount, std::
             const float dip = s.lowMidDip.process(sample);
             const float shapedBassProgram = bassProgram * bassProgramAmount + body * lowMidBodyAmount * (0.45f + voiceProtection * 0.55f) - dip * lowMidDipAmount;
             const float generatedSub = s.subLowpass.process(subBuffer_[i]) * (0.48f + voiceProtection * 0.62f) + deepExtensionBuffer_[i] * (DEEP_EXTENSION_MIX_BASE + voiceProtection * DEEP_EXTENSION_MIX_VOICE);
-            float mixed = cleanVoicePath + shapedBassProgram + generatedSub;
+            float mixed = cleanVoicePath + shapedBassProgram + generatedSub * generatedSubGain;
             mixed = s.bassBoostShelf.process(mixed);
             const float protectionGain = 0.94f + voiceProtection * 0.06f;
             mixed *= volumeGain * protectionGain * EPICENTER_OUTPUT_TRIM;

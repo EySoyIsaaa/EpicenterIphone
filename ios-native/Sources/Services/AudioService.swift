@@ -59,6 +59,7 @@ final class AudioService: ObservableObject {
     private let repository = NativeTrackRepository()
     private lazy var importer = NativeTrackImporter(repository: repository)
     private let playback = NativePlaybackController.shared
+    private var lastNativeRevision = -1
 
     private init() {
         playback.setEventEmitter { [weak self] event, data in
@@ -316,6 +317,10 @@ final class AudioService: ObservableObject {
     }
 
     private func apply(event: String, data: [String: Any]) {
+        if let revision = data["nativeRevision"] as? Int {
+            guard revision >= lastNativeRevision else { return }
+            lastNativeRevision = revision
+        }
         if let status = data["autoEqStatus"] as? String { autoEqStatus = status }
         let previousTrackId = currentTrackId
         if let value = data["isPlaying"] as? Bool { isPlaying = value }

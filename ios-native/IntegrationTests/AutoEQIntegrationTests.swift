@@ -49,6 +49,8 @@ final class AutoEQIntegrationTests: XCTestCase {
             audio.autoEqStatus == "applied" && audio.eqBands != manual
         }, evaluatedWith: nil)
         await fulfillment(of: [applied], timeout: 15)
+        print("[AutoEQ test] UI status=\(audio.autoEqStatus) bands=\(audio.eqBands)")
+        print("[AutoEQ test] native=\(NativePlaybackController.shared.getPlaybackState())")
         XCTAssertTrue(audio.autoEqEnabled)
         XCTAssertEqual(NativePlaybackController.shared.getPlaybackState()["currentTrackId"] as? String, id)
         audio.setAutoEqEnabled(false)

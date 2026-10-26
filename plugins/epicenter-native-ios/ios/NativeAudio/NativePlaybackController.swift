@@ -29,6 +29,7 @@ final class NativePlaybackController {
     private var manualEpicenterParams: [String: Any]?
     private var analysisInFlight: [String: UUID] = [:]
     private var autoEqStatus = "off"
+    private var eventRevision = 0
     private var crossfadeSeconds: Double = 0
     private var didFadeOutForCurrentTrack = false
 
@@ -280,6 +281,7 @@ final class NativePlaybackController {
     private func automaticPlaybackState() -> [String: Any] {
         var state = engine.playbackState(queue: queueManager.dictionary)
         state["autoEqStatus"] = autoEqStatus
+        state["nativeRevision"] = eventRevision
         return state
     }
 
@@ -696,6 +698,7 @@ final class NativePlaybackController {
         let state = engine.playbackState()
         let eqOn = (state["eq"] as? [String: Any])?["enabled"] as? Bool == true
         let epicenterOn = (state["epicenter"] as? [String: Any])?["enabled"] as? Bool == true
+        print("[AutoEQ] request auto=\(autoEqEnabled) eq=\(eqOn) force=\(forceRefresh) track=\(engine.currentTrackId ?? "nil")")
         if !autoEqEnabled { updateAutoEQStatus("off") }
         else if !eqOn { updateAutoEQStatus("waitingForEQ") }
         else if engine.analysisTrackSnapshot() == nil { updateAutoEQStatus("waitingForTrack") }
@@ -715,6 +718,7 @@ final class NativePlaybackController {
         analysisQueue.async { [weak self] in
             guard let self = self else { return }
             let analysis = EpicenterAutoEQAnalyzer.analyze(fileURL: snapshot.fileURL)
+            print("[AutoEQ] analysis complete valid=\(analysis?.isValid == true) stableId=\(stableId)")
             self.queue.async {
                 guard self.analysisInFlight[stableId] == request else { return }
                 self.analysisInFlight.removeValue(forKey: stableId)
@@ -766,6 +770,7 @@ final class NativePlaybackController {
     private func updateAutoEQStatus(_ value: String) {
         guard autoEqStatus != value else { return }
         autoEqStatus = value
+        print("[AutoEQ] status=\(value)")
         emit("autoEqStatusChanged", ["status": "ok", "autoEqStatus": value])
     }
 
@@ -1072,11 +1077,15 @@ final class NativePlaybackController {
 
     private func emit(_ eventName: String, _ data: [String: Any]) {
         guard let eventEmitter = eventEmitter else { return }
+        eventRevision += 1
+        var payload = data
+        payload["nativeRevision"] = eventRevision
+        payload["autoEqStatus"] = autoEqStatus
         if eventName == "currentTrackChanged", let track = data["track"] as? [String: Any] {
             print("[Bridge] event currentTrackChanged requestId=\(data["requestId"] as? String ?? "none") trackId=\(track["id"] as? String ?? "nil")")
         }
         DispatchQueue.main.async {
-            eventEmitter(eventName, data)
+            eventEmitter(eventName, payload)
         }
     }
 }

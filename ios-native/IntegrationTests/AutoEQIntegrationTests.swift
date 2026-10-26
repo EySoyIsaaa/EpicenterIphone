@@ -33,6 +33,7 @@ final class AutoEQIntegrationTests: XCTestCase {
         )
         _ = try repository.save(track)
         defer {
+            _ = NativePlaybackController.shared.setQueue(trackIds: [], startIndex: 0)
             _ = NativePlaybackController.shared.stop()
             _ = try? repository.deleteTrack(id: id)
             try? FileManager.default.removeItem(at: url)
@@ -50,7 +51,6 @@ final class AutoEQIntegrationTests: XCTestCase {
         }, evaluatedWith: nil)
         await fulfillment(of: [applied], timeout: 15)
         print("[AutoEQ test] UI status=\(audio.autoEqStatus) bands=\(audio.eqBands)")
-        print("[AutoEQ test] native=\(NativePlaybackController.shared.getPlaybackState())")
         XCTAssertTrue(audio.autoEqEnabled)
         XCTAssertEqual(NativePlaybackController.shared.getPlaybackState()["currentTrackId"] as? String, id)
         audio.setAutoEqEnabled(false)

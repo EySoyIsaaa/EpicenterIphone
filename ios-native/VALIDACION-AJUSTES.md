@@ -1,5 +1,23 @@
 # Cola, ajustes automáticos y calibración de audio
 
+## Correcciones de la build 12.0.0 (21)
+
+- El target vuelve a declarar iPhone e iPad (`TARGETED_DEVICE_FAMILY=1,2`), como el
+  proyecto anterior. Las orientaciones iPad también se conservan. El archivo generado
+  se comprueba en CI para evitar el rechazo de compatibilidad de App Store Connect.
+- Activar Auto EQ o volver a activar el EQ solicita análisis de la pista ya cargada.
+  La pantalla indica si está analizando, aplicado, esperando el EQ o si hubo un error;
+  permite reanalizar sin cambiar canción. Los resultados de solicitudes sustituidas se ignoran.
+- Auto Epicenter usa energía relativa, proporción subgrave y centro de graves del espectro
+  original. Ya no deriva todos los parámetros de bandas EQ que pueden saturar a -6 dB.
+  La caché pasa a un esquema v2 para no reutilizar perfiles antiguos incompletos.
+- Una lectura corta al final de un archivo comprimido no descarta las ventanas válidas.
+- Toda la cápsula roja del tutorial recibe el toque. Entrar y Saltar cierran la presentación
+  y guardan que el tutorial fue completado.
+- Las pruebas iOS ejecutan el motor real: inician una pista, activan después Auto EQ,
+  esperan cambios de bandas y comprueban la restauración manual. Una prueba de interfaz
+  toca el borde del botón rojo en los tres pasos y comprueba que la app queda accesible.
+
 ## Comportamiento
 
 - La cola presenta la pista actual fija sobre la lista desplazable de próximas canciones.

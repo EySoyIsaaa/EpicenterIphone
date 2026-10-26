@@ -4,7 +4,7 @@ EPICENTER DSP - APP NATIVA SWIFTUI
 La app actual esta en ios-native y en la rama feat/native-ui.
 Los ocho ajustes de cola, Hall, Car Audio, inicio y automaticos se agregaron
 en el commit f9afc46. El commit 7672833 es anterior a esos cambios.
-Esta actualizacion identifica la app como version 4.0 (2) en Ajustes.
+Esta actualizacion identifica la app como version 12.0.0 (21) en Ajustes.
 
 ACTUALIZAR UNA COPIA EXISTENTE EN LA MAC
 ---------------------------------------
@@ -39,7 +39,7 @@ EN XCODE
 2. Target EpicenterDSP > Signing & Capabilities: selecciona tu Team.
 3. Para forzar una recompilacion completa: Shift + Command + K.
 4. Ejecuta con Command + R.
-5. En la app: Musica > Ajustes > Acerca de debe mostrar 4.0 (2).
+5. En la app: Musica > Ajustes > Acerca de debe mostrar 12.0.0 (21).
 6. En Epicenter y EQ, Ajuste automatico debe ser la primera tarjeta.
    En la cola, Reproduciendo ahora debe quedar fijo sobre A continuacion.
 

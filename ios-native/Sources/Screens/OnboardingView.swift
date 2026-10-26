@@ -3,6 +3,7 @@ import SwiftUI
 /// Bienvenida de primera vez (3 pasos), fiel al onboarding del web.
 struct OnboardingView: View {
     let onDone: () -> Void
+    @Environment(\.dismiss) private var dismiss
     @State private var step = 0
 
     private struct Page { let icon: String; let title: String; let body: String }
@@ -30,7 +31,8 @@ struct OnboardingView: View {
             VStack(spacing: 0) {
                 HStack {
                     Spacer()
-                    Button(L("Saltar", "Skip")) { onDone() }
+                    Button(L("Saltar", "Skip"), action: finish)
+                        .accessibilityIdentifier("onboarding-skip")
                         .foregroundStyle(Theme.textMuted)
                         .padding()
                 }
@@ -43,19 +45,28 @@ struct OnboardingView: View {
                 .tabViewStyle(.page(indexDisplayMode: .always))
                 .indexViewStyle(.page(backgroundDisplayMode: .always))
 
-                Button(step == pages.count - 1 ? L("Listo", "Done") : L("Siguiente", "Next")) {
-                    if step == pages.count - 1 { onDone() }
+                Button {
+                    if step == pages.count - 1 { finish() }
                     else { withAnimation { step += 1 } }
+                } label: {
+                    Text(step == pages.count - 1 ? L("Entrar", "Enter") : L("Siguiente", "Next"))
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(Theme.red, in: Capsule())
+                        .foregroundStyle(.white)
+                        .contentShape(Capsule())
                 }
-                .font(.system(size: 16, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
-                .background(Theme.red, in: Capsule())
-                .foregroundStyle(.white)
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("onboarding-primary")
                 .padding(.horizontal, 30)
                 .padding(.bottom, 28)
             }
         }
+    }
+
+    private func finish() {
+        onDone()
+        dismiss()
     }
 
     private func pageView(_ p: Page) -> some View {

@@ -19,6 +19,19 @@ struct EqScreen: View {
                 ScrollView(.vertical) {
                     VStack(spacing: 14) {
                         autoEqBanner.padding(.horizontal)
+                        if audio.autoEqEnabled {
+                            HStack(spacing: 10) {
+                                if audio.autoEqStatus == "analyzing" { ProgressView().tint(Theme.red) }
+                                Text(autoEqStatusText)
+                                    .font(.caption).foregroundStyle(Theme.textSecondary)
+                                    .accessibilityIdentifier("auto-eq-status")
+                                Spacer()
+                                Button(L("Reanalizar", "Reanalyze")) { audio.reanalyzeCurrentTrack() }
+                                    .font(.caption.bold()).foregroundStyle(Theme.red)
+                                    .disabled(!audio.eqEnabled || !audio.hasTrack || audio.autoEqStatus == "analyzing")
+                            }
+                            .padding(.horizontal)
+                        }
                         Toggle(isOn: Binding(get: { audio.eqEnabled }, set: { audio.setEqEnabled($0) })) {
                             Text(L("Ecualizador activo", "Equalizer on")).font(.subheadline).foregroundStyle(Theme.textPrimary)
                         }
@@ -84,6 +97,16 @@ struct EqScreen: View {
                            "Adjusts all 31 bands and displays each song's curve. Requires the equalizer to be on; turning auto off restores your manual settings."),
             isOn: Binding(get: { audio.autoEqEnabled }, set: { audio.setAutoEqEnabled($0) })
         )
+    }
+
+    private var autoEqStatusText: String {
+        switch audio.autoEqStatus {
+        case "analyzing": return L("Analizando la canción actual…", "Analyzing the current song…")
+        case "applied": return L("Curva aplicada a la canción actual", "Curve applied to the current song")
+        case "waitingForEQ": return L("Activa «Ecualizador activo» para aplicar Auto EQ", "Turn on the equalizer to apply Auto EQ")
+        case "failed": return L("No se pudo analizar esta canción. Puedes reintentar.", "Could not analyze this song. You can retry.")
+        default: return L("Reproduce una canción para analizarla", "Play a song to analyze it")
+        }
     }
 
     private func freqLabel(_ f: Double) -> String {

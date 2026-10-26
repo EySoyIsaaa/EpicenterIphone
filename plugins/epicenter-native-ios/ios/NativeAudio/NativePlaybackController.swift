@@ -27,7 +27,8 @@ final class NativePlaybackController {
     private var autoEpicenterEnabled = false
     private var manualEqGains: [Double]?
     private var manualEpicenterParams: [String: Any]?
-    private var analysisInFlight = Set<String>()
+    private var analysisInFlight: [String: UUID] = [:]
+    private var autoEqStatus = "off"
     private var crossfadeSeconds: Double = 0
     private var didFadeOutForCurrentTrack = false
 
@@ -272,8 +273,14 @@ final class NativePlaybackController {
 
     func getPlaybackState() -> [String: Any] {
         queue.sync {
-            engine.playbackState(queue: queueManager.dictionary)
+            automaticPlaybackState()
         }
+    }
+
+    private func automaticPlaybackState() -> [String: Any] {
+        var state = engine.playbackState(queue: queueManager.dictionary)
+        state["autoEqStatus"] = autoEqStatus
+        return state
     }
 
     func setRepeatMode(_ mode: NativeRepeatMode) -> [String: Any] {
@@ -325,7 +332,7 @@ final class NativePlaybackController {
         queue.sync {
             if !enabled { restoreManualEQ() }
             let response = engine.setEqEnabled(enabled)
-            if enabled { triggerAutoEQIfEnabled() }
+            triggerAutoEQIfEnabled(forceRefresh: enabled && autoEqEnabled)
             emit("playbackStateChanged", engine.playbackState(queue: queueManager.dictionary))
             return response
         }
@@ -368,22 +375,32 @@ final class NativePlaybackController {
             autoEqEnabled = enabled
             print("[AutoEQ] enabled=\(enabled)")
             if enabled {
-                triggerAutoEQIfEnabled()
+                // Applying to the currently loaded song must not depend on the
+                // next track transition or an old cached result.
+                triggerAutoEQIfEnabled(forceRefresh: true)
             } else {
                 restoreManualEQ()
+                updateAutoEQStatus("off")
             }
             emit("playbackStateChanged", engine.playbackState(queue: queueManager.dictionary))
-            return ["status": "ok", "autoEqEnabled": enabled]
+            return automaticPlaybackState()
         }
     }
 
     func setAutoEpicenterEnabled(_ enabled: Bool) -> [String: Any] {
         queue.sync {
             autoEpicenterEnabled = enabled
-            if enabled { triggerAutoEQIfEnabled() }
+            if enabled { triggerAutoEQIfEnabled(forceRefresh: true) }
             else { restoreManualEpicenter() }
             emit("playbackStateChanged", engine.playbackState(queue: queueManager.dictionary))
             return ["status": "ok", "autoEpicenterEnabled": enabled]
+        }
+    }
+
+    func reanalyzeCurrentTrack() -> [String: Any] {
+        queue.sync {
+            triggerAutoEQIfEnabled(forceRefresh: true)
+            return automaticPlaybackState()
         }
     }
 
@@ -675,52 +692,64 @@ final class NativePlaybackController {
     }
 
     // MARK: - Independent per-song EQ and Epicenter analysis
-    private func triggerAutoEQIfEnabled() {
+    private func triggerAutoEQIfEnabled(forceRefresh: Bool = false) {
         let state = engine.playbackState()
         let eqOn = (state["eq"] as? [String: Any])?["enabled"] as? Bool == true
         let epicenterOn = (state["epicenter"] as? [String: Any])?["enabled"] as? Bool == true
+        if !autoEqEnabled { updateAutoEQStatus("off") }
+        else if !eqOn { updateAutoEQStatus("waitingForEQ") }
+        else if engine.analysisTrackSnapshot() == nil { updateAutoEQStatus("waitingForTrack") }
         guard (autoEqEnabled && eqOn) || (autoEpicenterEnabled && epicenterOn),
               let snapshot = engine.analysisTrackSnapshot() else { return }
         let stableId = snapshot.stableId
 
-        if let cached = AutoEQStore.shared.gains(forStableId: stableId), NativeAutoAdjustment.accepts(cached) {
-            applyAutomaticAdjustments(gains: cached, stableId: stableId, cached: true)
+        if !forceRefresh, let cached = AutoEQStore.shared.analysis(forStableId: stableId), cached.isValid {
+            applyAutomaticAdjustments(analysis: cached, stableId: stableId, cached: true)
             return
         }
-        guard analysisInFlight.insert(stableId).inserted else { return }
+        if !forceRefresh, analysisInFlight[stableId] != nil { return }
+        let request = UUID()
+        analysisInFlight[stableId] = request
+        if autoEqEnabled && eqOn { updateAutoEQStatus("analyzing") }
 
         analysisQueue.async { [weak self] in
             guard let self = self else { return }
-            let gains = EpicenterAutoEQAnalyzer.computeGains(fileURL: snapshot.fileURL)
-            if let gains = gains, NativeAutoAdjustment.accepts(gains) {
-                AutoEQStore.shared.save(gains: gains, forStableId: stableId)
-            }
+            let analysis = EpicenterAutoEQAnalyzer.analyze(fileURL: snapshot.fileURL)
             self.queue.async {
-                self.analysisInFlight.remove(stableId)
-                guard let gains = gains, NativeAutoAdjustment.accepts(gains),
-                      self.engine.analysisTrackSnapshot()?.stableId == stableId else { return }
+                guard self.analysisInFlight[stableId] == request else { return }
+                self.analysisInFlight.removeValue(forKey: stableId)
+                guard self.engine.analysisTrackSnapshot()?.stableId == stableId else { return }
+                guard let analysis = analysis, analysis.isValid else {
+                    if self.autoEqEnabled {
+                        let eq = self.engine.playbackState()["eq"] as? [String: Any]
+                        self.updateAutoEQStatus(eq?["enabled"] as? Bool == true ? "failed" : "waitingForEQ")
+                    }
+                    return
+                }
+                AutoEQStore.shared.save(analysis: analysis, forStableId: stableId)
                 // Re-check both switches here: the user may have disabled one while
                 // the analysis was running. A late result must never reapply it.
-                self.applyAutomaticAdjustments(gains: gains, stableId: stableId, cached: false)
+                self.applyAutomaticAdjustments(analysis: analysis, stableId: stableId, cached: false)
             }
         }
     }
 
-    private func applyAutomaticAdjustments(gains: [Float], stableId: String, cached: Bool) {
-        guard NativeAutoAdjustment.accepts(gains) else { return }
+    private func applyAutomaticAdjustments(analysis: NativeAudioAnalysis, stableId: String, cached: Bool) {
+        guard analysis.isValid else { return }
         let before = engine.playbackState()
         let eq = before["eq"] as? [String: Any] ?? [:]
         let epicenter = before["epicenter"] as? [String: Any] ?? [:]
-        let doubleGains = gains.map { Double($0) }
+        let doubleGains = analysis.gains.map { Double($0) }
         if autoEqEnabled, eq["enabled"] as? Bool == true {
             if manualEqGains == nil { manualEqGains = eq["bands"] as? [Double] }
             _ = engine.setEqBands(doubleGains)
+            updateAutoEQStatus("applied")
             emit("autoEqApplied", ["status": "ok", "stableId": stableId, "cached": cached, "gains": doubleGains])
         }
         let headphones = epicenter["mode"] as? String == "headphones"
         if autoEpicenterEnabled, epicenter["enabled"] as? Bool == true,
            engine.canApplyCustomEpicenter,
-           let settings = NativeAutoAdjustment.epicenter(gains: gains, headphones: headphones) {
+           let settings = NativeAutoAdjustment.epicenter(analysis: analysis, headphones: headphones) {
             if manualEpicenterParams == nil { manualEpicenterParams = epicenter }
             _ = engine.setEpicenterParams(
                 intensity: settings.intensity,
@@ -732,6 +761,12 @@ final class NativePlaybackController {
             emit("autoEpicenterApplied", ["status": "ok", "stableId": stableId, "mode": headphones ? "headphones" : "car"])
         }
         emit("playbackStateChanged", engine.playbackState(queue: queueManager.dictionary))
+    }
+
+    private func updateAutoEQStatus(_ value: String) {
+        guard autoEqStatus != value else { return }
+        autoEqStatus = value
+        emit("autoEqStatusChanged", ["status": "ok", "autoEqStatus": value])
     }
 
     private func restoreManualEQ() {

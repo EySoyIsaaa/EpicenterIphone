@@ -16,7 +16,7 @@ bash ABRIR_APP_NATIVA.command
 
 El comando verifica que la copia incluya los arreglos del commit `f9afc46`, regenera el
 proyecto y abre `ios-native/EpicenterDSP.xcodeproj` por su ruta absoluta. El commit
-`7672833` es anterior a los ocho arreglos. La app nueva se identifica como **4.0 (2)**
+`7672833` es anterior a los ocho arreglos. La app nueva se identifica como **12.0.0 (21)**
 en Música → Ajustes → Acerca de y en la apertura.
 
 ## Requisitos
@@ -42,7 +42,7 @@ fuentes, recursos, frameworks y el identificador; el `.xcodeproj` generado no se
 1. Esquema **EpicenterDSP** y destino iPhone/simulador.
 2. Target **EpicenterDSP** → **Signing & Capabilities** → elige tu Team.
 3. **⇧⌘K** para limpiar la compilación si estás comprobando una actualización.
-4. **⌘R** para instalar y ejecutar. Comprueba **4.0 (2)** en la app.
+4. **⌘R** para instalar y ejecutar. Comprueba **12.0.0 (21)** en la app.
 
 La configuración actual usa `com.epicenterdsp.player`. Conserva el Bundle Identifier
 de la app que estés actualizando para que iOS la reconozca como la misma instalación.

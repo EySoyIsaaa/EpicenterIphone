@@ -51,6 +51,13 @@ enum EpicenterAutoEQAnalyzer {
             return nil
         }
 
+        return analysis(measuredRawDb: measuredRawDb)?.gains
+    }
+
+    private static func analysis(measuredRawDb: [Float]) -> NativeAudioAnalysis? {
+        guard measuredRawDb.count == bandFrequencies.count,
+              measuredRawDb.allSatisfy({ $0.isFinite }),
+              (measuredRawDb.max() ?? -90) > -75 else { return nil }
         let bandCount = bandFrequencies.count
         let rawMean = measuredRawDb.reduce(0, +) / Float(bandCount)
         let measured = measuredRawDb.map { $0 - rawMean }          // tonal shape only
@@ -70,12 +77,27 @@ enum EpicenterAutoEQAnalyzer {
             }
             gains[i] = g
         }
-        return smoothed(gains)                                     // guard 4b: musical curve
+        let power = measuredRawDb.map { powf(10, $0 / 10) }
+        let bassPower = power[3...9].reduce(0, +)
+        let midPower = power[14...23].reduce(0, +)
+        let deepPower = power[2...5].reduce(0, +)
+        let lowPower = power[2...9].reduce(0, +)
+        let weightedBass = (3...9).reduce(Float(0)) { $0 + power[$1] * bandFrequencies[$1] }
+        return NativeAudioAnalysis(
+            gains: smoothed(gains),
+            bassRelativeDb: 10 * log10(max(bassPower / 7, 1e-12) / max(midPower / 10, 1e-12)),
+            deepBassRatio: min(max(deepPower / max(lowPower, 1e-12), 0), 1),
+            bassCentroidHz: min(max(weightedBass / max(bassPower, 1e-12), 20), 200)
+        )
     }
 
     /// Opens its own decoder off the audio thread. Memory stays below 4 MB for a
     /// stereo file, including streaming Hi-Res songs, without retaining playback PCM.
     static func computeGains(fileURL: URL) -> [Float]? {
+        analyze(fileURL: fileURL)?.gains
+    }
+
+    static func analyze(fileURL: URL) -> NativeAudioAnalysis? {
         guard let file = try? AVAudioFile(forReading: fileURL, commonFormat: .pcmFormatFloat32, interleaved: false),
               file.length >= AVAudioFramePosition(fftSize) else { return nil }
         let windowCount = min(maxWindows, max(1, Int(file.length / AVAudioFramePosition(fftSize))))
@@ -83,18 +105,28 @@ enum EpicenterAutoEQAnalyzer {
               let window = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(fftSize)),
               let destination = samples.floatChannelData else { return nil }
 
+        var completedWindows = 0
         for index in 0..<windowCount {
             let fraction = windowCount > 1 ? Double(index) / Double(windowCount - 1) : 0
             file.framePosition = AVAudioFramePosition(Double(file.length - AVAudioFramePosition(fftSize)) * fraction)
             do { try file.read(into: window, frameCount: AVAudioFrameCount(fftSize)) }
-            catch { return nil }
-            guard window.frameLength == AVAudioFrameCount(fftSize), let source = window.floatChannelData else { return nil }
+            catch { continue }
+            // Compressed-file length can include encoder padding. A short final
+            // read must not discard every valid window and silently disable Auto EQ.
+            guard window.frameLength > 0, let source = window.floatChannelData else { continue }
+            let readFrames = Int(window.frameLength)
             for channel in 0..<Int(file.processingFormat.channelCount) {
-                destination[channel].advanced(by: index * fftSize).update(from: source[channel], count: fftSize)
+                let output = destination[channel].advanced(by: completedWindows * fftSize)
+                output.update(from: source[channel], count: readFrames)
+                for frame in readFrames..<fftSize { output[frame] = 0 }
             }
+            completedWindows += 1
         }
-        samples.frameLength = AVAudioFrameCount(windowCount * fftSize)
-        return computeGains(buffer: samples, sampleRate: file.processingFormat.sampleRate, sampledWindowCount: windowCount)
+        guard completedWindows > 0 else { return nil }
+        samples.frameLength = AVAudioFrameCount(completedWindows * fftSize)
+        guard let measured = averageSpectrumDb(buffer: samples, sampleRate: file.processingFormat.sampleRate,
+                                             sampledWindowCount: completedWindows) else { return nil }
+        return analysis(measuredRawDb: measured)
     }
 
     // MARK: Spectrum measurement (vDSP)

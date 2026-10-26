@@ -42,6 +42,7 @@ final class AudioService: ObservableObject {
     @Published var eqEnabled = false
     @Published var eqBands: [Double] = Array(repeating: 0, count: 31)
     @Published var autoEqEnabled = false
+    @Published var autoEqStatus = "off"
 
     // Effects
     @Published var reverbEnabled = false
@@ -238,8 +239,11 @@ final class AudioService: ObservableObject {
     func setAutoEqEnabled(_ on: Bool) {
         autoEqEnabled = on
         UserDefaults.standard.set(on, forKey: "autoEqEnabled")
-        _ = playback.setAutoEqEnabled(on)
-        apply(event: "playbackStateChanged", data: playback.getPlaybackState())
+        apply(event: "playbackStateChanged", data: playback.setAutoEqEnabled(on))
+    }
+
+    func reanalyzeCurrentTrack() {
+        apply(event: "playbackStateChanged", data: playback.reanalyzeCurrentTrack())
     }
 
     /// Ajuste automático (pantalla Epicenter): independiente del Auto-EQ del ecualizador.
@@ -312,6 +316,7 @@ final class AudioService: ObservableObject {
     }
 
     private func apply(event: String, data: [String: Any]) {
+        if let status = data["autoEqStatus"] as? String { autoEqStatus = status }
         let previousTrackId = currentTrackId
         if let value = data["isPlaying"] as? Bool { isPlaying = value }
         if let value = data["currentTime"] as? Double { currentTime = value }

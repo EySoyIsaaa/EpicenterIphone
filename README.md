@@ -13,7 +13,7 @@ bash ABRIR_APP_NATIVA.command
 
 Instala `xcodegen` con `brew install xcodegen` si el comando lo solicita.
 El proyecto correcto es `ios-native/EpicenterDSP.xcodeproj`. La build actual muestra
-`4.0 (2)` en Música → Ajustes → Acerca de.
+`12.0.0 (21)` en Música → Ajustes → Acerca de.
 
 Consulta [COMANDOS_MAC_XCODE.txt](COMANDOS_MAC_XCODE.txt) para la instalación completa
 y [la documentación de SwiftUI](ios-native/README.md) para los detalles del proyecto.

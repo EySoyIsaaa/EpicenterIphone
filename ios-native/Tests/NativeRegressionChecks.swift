@@ -1,4 +1,5 @@
 import AVFoundation
+import AudioToolbox
 import Foundation
 
 /// Executed on macOS against the same queue, policy and analyzer sources as iOS.
@@ -38,19 +39,23 @@ enum NativeRegressionChecks {
     }
 
     private static func automaticTuning() {
-        var lean = [Float](repeating: 0, count: 31)
-        var rich = lean
-        for band in 2...9 { lean[band] = 2; rich[band] = -5 }
+        // Identical clipped EQ curves must still yield different Epicenter
+        // tuning when the original recordings have different bass profiles.
+        var gains = [Float](repeating: 0, count: 31)
+        for band in 2...9 { gains[band] = -6 }
+        let lean = NativeAudioAnalysis(gains: gains, bassRelativeDb: 2, deepBassRatio: 0.15, bassCentroidHz: 115)
+        let rich = NativeAudioAnalysis(gains: gains, bassRelativeDb: 26, deepBassRatio: 0.7, bassCentroidHz: 65)
         for headphones in [false, true] {
-            let leanSettings = NativeAutoAdjustment.epicenter(gains: lean, headphones: headphones)!
-            let richSettings = NativeAutoAdjustment.epicenter(gains: rich, headphones: headphones)!
+            let leanSettings = NativeAutoAdjustment.epicenter(analysis: lean, headphones: headphones)!
+            let richSettings = NativeAutoAdjustment.epicenter(analysis: rich, headphones: headphones)!
             precondition(leanSettings.intensity > richSettings.intensity)
+            precondition(leanSettings.sweep != richSettings.sweep)
+            precondition(leanSettings.width != richSettings.width)
             precondition((0...100).contains(leanSettings.intensity))
             precondition((27...63).contains(leanSettings.sweep))
         }
-        precondition(NativeAutoAdjustment.epicenter(gains: [], headphones: false) == nil)
-        lean[0] = .nan
-        precondition(!NativeAutoAdjustment.accepts(lean))
+        gains[0] = .nan
+        precondition(!NativeAutoAdjustment.accepts(gains))
     }
 
     private static func boundedFileAnalysis() throws {
@@ -80,6 +85,27 @@ enum NativeRegressionChecks {
             }
             let gains = EpicenterAutoEQAnalyzer.computeGains(fileURL: url)
             precondition(gains != nil && NativeAutoAdjustment.accepts(gains!))
+            if sampleRate == 44_100 {
+                for codec in [kAudioFormatMPEG4AAC, kAudioFormatAppleLossless] {
+                    let compressedURL = directory.appendingPathComponent("compressed-\(codec).m4a")
+                    do {
+                        let input = try AVAudioFile(forReading: url)
+                        let output = try AVAudioFile(forWriting: compressedURL, settings: [
+                            AVFormatIDKey: codec,
+                            AVSampleRateKey: sampleRate,
+                            AVNumberOfChannelsKey: 2,
+                        ])
+                        let block = AVAudioPCMBuffer(pcmFormat: input.processingFormat, frameCapacity: 4096)!
+                        while input.framePosition < input.length {
+                            try input.read(into: block, frameCount: 4096)
+                            if block.frameLength == 0 { break }
+                            try output.write(from: block)
+                        }
+                    }
+                    let profile = EpicenterAutoEQAnalyzer.analyze(fileURL: compressedURL)
+                    precondition(profile?.isValid == true, "Compressed file analysis failed")
+                }
+            }
         }
     }
 }

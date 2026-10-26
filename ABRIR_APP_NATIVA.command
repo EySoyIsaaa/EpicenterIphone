@@ -40,5 +40,5 @@ cd "$native_root"
 xcodegen generate
 printf '\nAbriendo proyecto nativo: %s\n' "$native_root/EpicenterDSP.xcodeproj"
 printf '%s\n' 'Selecciona tu Team y tu iPhone; ejecuta con Command + R.' \
-    'Comprueba la version 4.0 (2) en Musica > Ajustes > Acerca de.'
+    'Comprueba la version 12.0.0 (21) en Musica > Ajustes > Acerca de.'
 open "$native_root/EpicenterDSP.xcodeproj"

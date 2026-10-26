@@ -1,5 +1,18 @@
 import Foundation
 
+struct NativeAudioAnalysis: Codable {
+    let gains: [Float]
+    let bassRelativeDb: Float
+    let deepBassRatio: Float
+    let bassCentroidHz: Float
+
+    var isValid: Bool {
+        NativeAutoAdjustment.accepts(gains) && bassRelativeDb.isFinite
+            && deepBassRatio.isFinite && (0...1).contains(deepBassRatio)
+            && bassCentroidHz.isFinite && (20...200).contains(bassCentroidHz)
+    }
+}
+
 /// Derives Epicenter settings from the measured per-song correction, independently
 /// of applying that correction to the equalizer. It never enables either processor.
 enum NativeAutoAdjustment {
@@ -14,25 +27,22 @@ enum NativeAutoAdjustment {
         gains.count == 31 && gains.allSatisfy { $0.isFinite && abs($0) <= 8 }
     }
 
-    static func epicenter(gains: [Float], headphones: Bool) -> EpicenterSettings? {
-        guard accepts(gains) else { return nil }
-        func mean(_ indices: ClosedRange<Int>) -> Double {
-            indices.reduce(0.0) { $0 + Double(gains[$1]) } / Double(indices.count)
-        }
+    static func epicenter(analysis: NativeAudioAnalysis, headphones: Bool) -> EpicenterSettings? {
+        guard analysis.isValid else { return nil }
         func clamp(_ value: Double, _ low: Double, _ high: Double) -> Double {
             min(max(value, low), high)
         }
 
-        // Positive correction means this song needs more energy in that region.
-        // Bass-rich masters receive less reconstruction; lean ones receive more.
-        let bassNeed = mean(2...9)
-        let deepNeed = mean(2...5)
-        let upperBassNeed = mean(6...9)
+        // Use the measured spectrum, NOT the clipped EQ gains. Bass corrections
+        // often all hit -6 dB, which used to produce identical settings per song.
+        let bass = Double(analysis.bassRelativeDb)
+        let deep = Double(analysis.deepBassRatio)
+        let centroid = Double(analysis.bassCentroidHz)
         return EpicenterSettings(
-            intensity: clamp((headphones ? 65 : 76) + bassNeed * 5, headphones ? 38 : 45, headphones ? 90 : 100),
-            sweep: clamp(45 + (upperBassNeed - deepNeed) * 1.8, 32, 58),
-            width: clamp(50 + deepNeed * 3, 32, 68),
-            balance: clamp(90 + bassNeed * 2, 78, 100)
+            intensity: clamp((headphones ? 78 : 91) - (bass - 5) * (headphones ? 0.9 : 1.2), 35, headphones ? 95 : 100),
+            sweep: clamp(centroid * 0.5, 27, 63),
+            width: clamp(74 - deep * 42, 30, 74),
+            balance: clamp(96 - max(0, bass - 8) * 0.65, 74, 100)
         )
     }
 }

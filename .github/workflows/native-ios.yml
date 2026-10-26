@@ -57,11 +57,32 @@ jobs:
       - name: Verify installed app version marker
         run: |
           app_plist="$RUNNER_TEMP/epicenter-derived/Build/Products/Debug-iphonesimulator/EpicenterDSP.app/Info.plist"
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app_plist")" = '4.0'
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app_plist")" = '2'
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$app_plist")" = '12.0.0'
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$app_plist")" = '21'
+          test "$(/usr/libexec/PlistBuddy -c 'Print UIDeviceFamily:0' "$app_plist")" = '1'
+          test "$(/usr/libexec/PlistBuddy -c 'Print UIDeviceFamily:1' "$app_plist")" = '2'
+          test "$(/usr/libexec/PlistBuddy -c 'Print UISupportedInterfaceOrientations~ipad:3' "$app_plist")" = 'UIInterfaceOrientationLandscapeRight'
+      - name: Test current-track Auto EQ and tutorial button on iPhone Simulator
+        working-directory: ios-native
+        run: |
+          set -o pipefail
+          device_id="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for runtime,items in devices.items() if "iOS" in runtime for d in items if d["name"].startswith("iPhone")))')"
+          xcodebuild -project EpicenterDSP.xcodeproj -scheme EpicenterDSP \
+            -configuration Debug -destination "platform=iOS Simulator,id=$device_id" \
+            -derivedDataPath "$RUNNER_TEMP/epicenter-derived" \
+            -resultBundlePath "$RUNNER_TEMP/native-tests.xcresult" \
+            CODE_SIGNING_ALLOWED=NO test | tee "$RUNNER_TEMP/native-tests.log"
       - name: Build log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: native-build-log
           path: ${{ runner.temp }}/native-build.log
+      - name: Simulator test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-simulator-tests
+          path: |
+            ${{ runner.temp }}/native-tests.log
+            ${{ runner.temp }}/native-tests.xcresult

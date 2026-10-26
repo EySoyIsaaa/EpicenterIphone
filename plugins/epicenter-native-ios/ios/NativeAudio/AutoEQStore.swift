@@ -11,23 +11,25 @@ final class AutoEQStore {
 
     private let queue = DispatchQueue(label: "com.epicenter.hifi.auto-eq-store")
     private let fileURL: URL
-    private var cache: [String: [Float]]
+    private var cache: [String: NativeAudioAnalysis]
 
     private init() {
         let base = (try? FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
         )) ?? FileManager.default.temporaryDirectory
-        fileURL = base.appendingPathComponent("EpicenterAutoEQ.json")
+        // New schema intentionally ignores old EQ-only results, whose clipped
+        // bass bands cannot describe the original song's bass profile.
+        fileURL = base.appendingPathComponent("EpicenterAnalysis-v2.json")
         cache = AutoEQStore.load(from: fileURL)
     }
 
-    func gains(forStableId stableId: String) -> [Float]? {
+    func analysis(forStableId stableId: String) -> NativeAudioAnalysis? {
         queue.sync { cache[stableId] }
     }
 
-    func save(gains: [Float], forStableId stableId: String) {
+    func save(analysis: NativeAudioAnalysis, forStableId stableId: String) {
         queue.async {
-            self.cache[stableId] = gains
+            self.cache[stableId] = analysis
             self.persist()
         }
     }
@@ -44,9 +46,9 @@ final class AutoEQStore {
         try? data.write(to: fileURL, options: .atomic)
     }
 
-    private static func load(from url: URL) -> [String: [Float]] {
+    private static func load(from url: URL) -> [String: NativeAudioAnalysis] {
         guard let data = try? Data(contentsOf: url),
-              let decoded = try? JSONDecoder().decode([String: [Float]].self, from: data) else {
+              let decoded = try? JSONDecoder().decode([String: NativeAudioAnalysis].self, from: data) else {
             return [:]
         }
         return decoded

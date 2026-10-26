@@ -62,16 +62,34 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print UIDeviceFamily:0' "$app_plist")" = '1'
           test "$(/usr/libexec/PlistBuddy -c 'Print UIDeviceFamily:1' "$app_plist")" = '2'
           test "$(/usr/libexec/PlistBuddy -c 'Print UISupportedInterfaceOrientations~ipad:3' "$app_plist")" = 'UIInterfaceOrientationLandscapeRight'
-      - name: Test current-track Auto EQ and tutorial button on iPhone Simulator
+      - name: Boot iPhone Simulator
+        timeout-minutes: 5
+        run: |
+          device_id="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for runtime,items in devices.items() if "iOS" in runtime for d in items if d["name"].startswith("iPhone")))')"
+          echo "TEST_DEVICE_ID=$device_id" >> "$GITHUB_ENV"
+          xcrun simctl bootstatus "$device_id" -b
+      - name: Test Auto EQ on the playing track
+        timeout-minutes: 4
         working-directory: ios-native
         run: |
           set -o pipefail
-          device_id="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for runtime,items in devices.items() if "iOS" in runtime for d in items if d["name"].startswith("iPhone")))')"
           xcodebuild -project EpicenterDSP.xcodeproj -scheme EpicenterDSP \
-            -configuration Debug -destination "platform=iOS Simulator,id=$device_id" \
+            -configuration Debug -destination "platform=iOS Simulator,id=$TEST_DEVICE_ID" \
             -derivedDataPath "$RUNNER_TEMP/epicenter-derived" \
-            -resultBundlePath "$RUNNER_TEMP/native-tests.xcresult" \
-            CODE_SIGNING_ALLOWED=NO test | tee "$RUNNER_TEMP/native-tests.log"
+            -parallel-testing-enabled NO -only-testing:EpicenterDSPTests \
+            -resultBundlePath "$RUNNER_TEMP/auto-eq-tests.xcresult" \
+            CODE_SIGNING_ALLOWED=NO test | tee "$RUNNER_TEMP/auto-eq-tests.log"
+      - name: Test tutorial button
+        timeout-minutes: 4
+        working-directory: ios-native
+        run: |
+          set -o pipefail
+          xcodebuild -project EpicenterDSP.xcodeproj -scheme EpicenterDSP \
+            -configuration Debug -destination "platform=iOS Simulator,id=$TEST_DEVICE_ID" \
+            -derivedDataPath "$RUNNER_TEMP/epicenter-derived" \
+            -parallel-testing-enabled NO -only-testing:EpicenterDSPUITests \
+            -resultBundlePath "$RUNNER_TEMP/tutorial-tests.xcresult" \
+            CODE_SIGNING_ALLOWED=NO test | tee "$RUNNER_TEMP/tutorial-tests.log"
       - name: Build log
         if: failure()
         uses: actions/upload-artifact@v4
@@ -84,5 +102,5 @@ jobs:
         with:
           name: native-simulator-tests
           path: |
-            ${{ runner.temp }}/native-tests.log
-            ${{ runner.temp }}/native-tests.xcresult
+            ${{ runner.temp }}/*-tests.log
+            ${{ runner.temp }}/*-tests.xcresult
